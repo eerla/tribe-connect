@@ -1,26 +1,60 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sun, Moon, Monitor, User, Bell, Shield, LogOut } from 'lucide-react';
+import { Sun, Moon, Monitor, User, Bell, Shield, LogOut, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { ImageUpload } from '@/components/common/ImageUpload';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, profile, isAuthenticated, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
+  
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [location, setLocation] = useState(profile?.location || '');
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: "Signed out",
       description: "You've been successfully signed out",
     });
     navigate('/');
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    const { error } = await updateProfile({
+      full_name: fullName,
+      bio,
+      location,
+      avatar_url: avatarUrl,
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully",
+      });
+    }
+    setIsSaving(false);
   };
 
   if (!isAuthenticated) {
@@ -47,6 +81,80 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="text-3xl font-heading font-bold mb-8">Settings</h1>
+
+          {/* Profile */}
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Profile
+            </h2>
+            <div className="bg-card rounded-2xl border border-border p-6 space-y-6">
+              <div>
+                <Label className="mb-2 block">Profile Photo</Label>
+                <ImageUpload
+                  bucket="tcpublic"
+                  folder="avatars"
+                  currentUrl={avatarUrl}
+                  onUpload={setAvatarUrl}
+                  aspectRatio="square"
+                  className="w-32"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={user?.email || ''}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea
+                  id="bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Tell us about yourself"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City, Country"
+                />
+              </div>
+              
+              <Button onClick={handleSaveProfile} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </section>
 
           {/* Appearance */}
           <section className="mb-8">
@@ -88,25 +196,6 @@ export default function Settings() {
                 >
                   <Monitor className="h-5 w-5 mb-2" />
                   System
-                </Button>
-              </div>
-            </div>
-          </section>
-
-          {/* Account */}
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Account
-            </h2>
-            <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{user?.name}</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/profile/me">Edit Profile</Link>
                 </Button>
               </div>
             </div>

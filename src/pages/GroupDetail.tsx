@@ -7,7 +7,6 @@ import {
   Share2,
   MessageCircle,
   ArrowLeft,
-  Settings,
   Lock
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -16,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EventCard } from '@/components/cards/EventCard';
+import { TribeChat } from '@/components/chat/TribeChat';
 import { mockTribes, mockEvents, mockUsers } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -210,21 +210,9 @@ export default function GroupDetail() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="bg-card rounded-2xl border border-border p-6 text-center py-16"
+              className="bg-card rounded-2xl border border-border overflow-hidden"
             >
-              <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Tribe Chat</h3>
-              <p className="text-muted-foreground mb-4">
-                {isAuthenticated 
-                  ? "Join the tribe to participate in the chat"
-                  : "Sign in and join the tribe to chat with members"
-                }
-              </p>
-              {!isAuthenticated && (
-                <Button asChild>
-                  <Link to="/login">Sign In</Link>
-                </Button>
-              )}
+              <TribeChat tribeId={tribe.id} isMember={isAuthenticated} />
             </motion.div>
           </TabsContent>
         </Tabs>

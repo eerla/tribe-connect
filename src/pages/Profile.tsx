@@ -7,27 +7,50 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
-import { mockUsers, mockTribes, mockEvents } from '@/data/mockData';
+import { mockTribes, mockEvents } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
 export default function Profile() {
   const { id } = useParams();
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: currentUser, profile, isAuthenticated } = useAuth();
   
   const isOwnProfile = id === 'me' || id === currentUser?.id;
-  const user = isOwnProfile ? currentUser : mockUsers.find(u => u.id === id);
+  
+  // For own profile, use the authenticated user's profile
+  // For other profiles, we'd fetch from the database (simplified for now)
+  const displayName = isOwnProfile ? (profile?.full_name || 'User') : 'User';
+  const displayAvatar = isOwnProfile ? profile?.avatar_url : null;
+  const displayBio = isOwnProfile ? profile?.bio : null;
+  const displayLocation = isOwnProfile ? profile?.location : null;
+  const createdAt = currentUser?.created_at || new Date().toISOString();
   
   const userTribes = mockTribes.slice(0, 2);
   const userEvents = mockEvents.slice(0, 2);
 
-  if (!user) {
+  if (!isOwnProfile && !id) {
     return (
       <Layout>
         <div className="container py-20 text-center">
           <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
           <Button asChild>
             <Link to="/">Go Home</Link>
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isOwnProfile && !isAuthenticated) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in</h1>
+          <p className="text-muted-foreground mb-6">
+            You need to be signed in to view your profile
+          </p>
+          <Button asChild>
+            <Link to="/login">Sign In</Link>
           </Button>
         </div>
       </Layout>
@@ -46,15 +69,15 @@ export default function Profile() {
           <div className="flex flex-col md:flex-row gap-6 items-start">
             {/* Avatar */}
             <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-lg">
-              <AvatarImage src={user.avatar_url} alt={user.name} />
-              <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={displayAvatar || undefined} alt={displayName} />
+              <AvatarFallback className="text-2xl">{displayName.charAt(0)}</AvatarFallback>
             </Avatar>
 
             {/* Info */}
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
                 <h1 className="text-2xl md:text-3xl font-heading font-bold">
-                  {user.name}
+                  {displayName}
                 </h1>
                 {isOwnProfile && isAuthenticated && (
                   <div className="flex gap-2">
@@ -73,20 +96,20 @@ export default function Profile() {
                 )}
               </div>
 
-              {user.bio && (
-                <p className="text-muted-foreground mb-4">{user.bio}</p>
+              {displayBio && (
+                <p className="text-muted-foreground mb-4">{displayBio}</p>
               )}
 
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                {user.location && (
+                {displayLocation && (
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" />
-                    {user.location}
+                    {displayLocation}
                   </span>
                 )}
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  Joined {format(new Date(user.created_at), 'MMMM yyyy')}
+                  Joined {format(new Date(createdAt), 'MMMM yyyy')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Users className="h-4 w-4" />
@@ -138,7 +161,7 @@ export default function Profile() {
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No tribes yet</h3>
                   <p className="text-muted-foreground mb-4">
-                    {isOwnProfile ? "You haven't joined any tribes yet" : `${user.name} hasn't joined any tribes yet`}
+                    {isOwnProfile ? "You haven't joined any tribes yet" : `${displayName} hasn't joined any tribes yet`}
                   </p>
                   {isOwnProfile && (
                     <Button asChild>
@@ -166,7 +189,7 @@ export default function Profile() {
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No events yet</h3>
                   <p className="text-muted-foreground mb-4">
-                    {isOwnProfile ? "You haven't attended any events yet" : `${user.name} hasn't attended any events yet`}
+                    {isOwnProfile ? "You haven't attended any events yet" : `${displayName} hasn't attended any events yet`}
                   </p>
                   {isOwnProfile && (
                     <Button asChild>

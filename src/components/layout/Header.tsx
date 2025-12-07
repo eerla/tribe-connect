@@ -11,7 +11,8 @@ import {
   LogOut,
   Settings,
   Plus,
-  Compass
+  Compass,
+  MessageCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, profile, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const navLinks = [
@@ -87,6 +88,9 @@ export function Header() {
 
           {isAuthenticated ? (
             <>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
+                <MessageCircle className="h-5 w-5" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => navigate('/notifications')}>
                 <Bell className="h-5 w-5" />
               </Button>
@@ -95,20 +99,24 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar_url} alt={user?.name} />
-                      <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
+                      <AvatarFallback>{profile?.full_name?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{user?.name}</p>
+                    <p className="text-sm font-medium">{profile?.full_name || 'User'}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/profile/me')}>
                     <User className="mr-2 h-4 w-4" />
                     My Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/messages')}>
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Messages
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/groups/create')}>
                     <Plus className="mr-2 h-4 w-4" />
@@ -123,7 +131,7 @@ export function Header() {
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-destructive">
+                  <DropdownMenuItem onClick={() => logout()} className="text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out
                   </DropdownMenuItem>
