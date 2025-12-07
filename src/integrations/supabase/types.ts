@@ -14,16 +14,349 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      event_attendees: {
+        Row: {
+          event_id: string
+          id: string
+          rsvp_at: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          rsvp_at?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          rsvp_at?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_comments: {
+        Row: {
+          content: string
+          created_at: string
+          event_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          event_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_comments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          attendee_count: number | null
+          category: string | null
+          city: string | null
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          is_online: boolean | null
+          is_recurring: boolean | null
+          location: string | null
+          max_attendees: number | null
+          organizer: string
+          recurrence_rule: string | null
+          starts_at: string
+          title: string
+          tribe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendee_count?: number | null
+          category?: string | null
+          city?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_online?: boolean | null
+          is_recurring?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer: string
+          recurrence_rule?: string | null
+          starts_at: string
+          title: string
+          tribe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendee_count?: number | null
+          category?: string | null
+          city?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_online?: boolean | null
+          is_recurring?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer?: string
+          recurrence_rule?: string | null
+          starts_at?: string
+          title?: string
+          tribe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_tribe_id_fkey"
+            columns: ["tribe_id"]
+            isOneToOne: false
+            referencedRelation: "tribes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          tribe_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          tribe_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          tribe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_tribe_id_fkey"
+            columns: ["tribe_id"]
+            isOneToOne: false
+            referencedRelation: "tribes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          location: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          location?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          location?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      tribe_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string | null
+          tribe_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          tribe_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string | null
+          tribe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tribe_members_tribe_id_fkey"
+            columns: ["tribe_id"]
+            isOneToOne: false
+            referencedRelation: "tribes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tribes: {
+        Row: {
+          category: string | null
+          city: string | null
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_private: boolean | null
+          member_count: number | null
+          owner: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          city?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          member_count?: number | null
+          owner: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          city?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          member_count?: number | null
+          owner?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +483,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
