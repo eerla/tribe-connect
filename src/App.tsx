@@ -19,6 +19,8 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
+import Messages from "./pages/Messages";
 import About from "./pages/About";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
@@ -46,6 +48,8 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/messages" element={<Messages />} />
               <Route path="/about" element={<About />} />
               <Route path="/help" element={<Help />} />
               <Route path="*" element={<NotFound />} />
