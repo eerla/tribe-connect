@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -7,25 +8,86 @@ import {
   Share2,
   MessageCircle,
   ArrowLeft,
-  Lock
+  Lock,
+  Loader2
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EventCard } from '@/components/cards/EventCard';
 import { TribeChat } from '@/components/chat/TribeChat';
-import { mockTribes, mockEvents, mockUsers } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
+interface Tribe {
+  id: string;
+  owner: string;
+  title: string;
+  slug?: string;
+  description?: string | null;
+  cover_url?: string | null;
+  city?: string | null;
+  is_private?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
 
 export default function GroupDetail() {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
-  const tribe = mockTribes.find(t => t.id === id);
-  const tribeEvents = mockEvents.filter(e => e.tribe_id === id);
-  const members = mockUsers.slice(0, 6);
+  const [tribe, setTribe] = useState<Tribe | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
+
+  useEffect(() => {
+    const fetchTribe = async () => {
+      if (!id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('tribes')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        setTribe(data);
+      } catch (error) {
+        console.error('Error fetching tribe:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTribe();
+  }, [id]);
+
+  const handleJoin = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to join this tribe",
+      });
+      return;
+    }
+    toast({
+      title: "Welcome to the tribe!",
+      description: `You've joined ${tribe?.title || 'this tribe'}`,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   if (!tribe) {
     return (
@@ -40,29 +102,21 @@ export default function GroupDetail() {
     );
   }
 
-  const handleJoin = () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to join this tribe",
-      });
-      return;
-    }
-    toast({
-      title: "Welcome to the tribe!",
-      description: `You've joined ${tribe.name}`,
-    });
-  };
-
   return (
     <Layout>
       {/* Hero Image */}
-      <div className="relative h-[35vh] md:h-[45vh] overflow-hidden">
-        <img
-          src={tribe.cover_image || `https://picsum.photos/1600/900?random=${tribe.id}`}
-          alt={tribe.name}
-          className="w-full h-full object-cover"
-        />
+      <div className="relative h-[35vh] md:h-[45vh] overflow-hidden bg-muted">
+        {tribe.cover_url ? (
+          <img
+            src={tribe.cover_url}
+            alt={tribe.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <Users className="h-20 w-20 text-muted-foreground/30" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         
         {/* Back Button */}
@@ -87,7 +141,7 @@ export default function GroupDetail() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
                 <h1 className="text-2xl md:text-3xl font-heading font-bold">
-                  {tribe.name}
+                  {tribe.title}
                 </h1>
                 {tribe.is_private && (
                   <Badge variant="outline" className="gap-1">
@@ -98,21 +152,23 @@ export default function GroupDetail() {
               </div>
               
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4" />
-                  {tribe.location}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  {tribe.member_count.toLocaleString()} members
-                </span>
+                {tribe.city && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    {tribe.city}
+                  </span>
+                )}
+                {tribe.created_at && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4" />
+                    Created {new Date(tribe.created_at).toLocaleDateString()}
+                  </span>
+                )}
               </div>
 
               <p className="text-muted-foreground">
                 {tribe.description}
               </p>
-
-              <Badge className="mt-4">{tribe.category}</Badge>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -126,6 +182,7 @@ export default function GroupDetail() {
             </div>
           </div>
         </motion.div>
+
 
         {/* Tabs */}
         <Tabs defaultValue="events" className="space-y-6">

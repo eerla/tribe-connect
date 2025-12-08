@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, SlidersHorizontal, Users } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { SkeletonCard } from '@/components/common/SkeletonCard';
-import { Badge } from '@/components/ui/badge';
-import { mockTribes, categories } from '@/data/mockData';
+import { useTribes } from '@/hooks/useTribes';
+import { categories } from '@/data/mockData';
 import {
   Select,
   SelectContent,
@@ -17,15 +18,14 @@ import {
 } from '@/components/ui/select';
 
 export default function Groups() {
+  const { tribes, isLoading } = useTribes();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredTribes = mockTribes.filter((tribe) => {
-    const matchesSearch = tribe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tribe.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || tribe.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const filteredTribes = tribes.filter((tribe) => {
+    const matchesSearch = tribe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tribe.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   return (
@@ -37,12 +37,22 @@ export default function Groups() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">
-              Find Your Tribe
-            </h1>
-            <p className="text-muted-foreground mb-6">
-              Join communities that share your passions
-            </p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">
+                  Find Your Tribe
+                </h1>
+                <p className="text-muted-foreground">
+                  Join communities that share your passions
+                </p>
+              </div>
+              <Button asChild className="gap-2">
+                <Link to="/create-group">
+                  <Plus className="h-4 w-4" />
+                  Create Tribe
+                </Link>
+              </Button>
+            </div>
 
             {/* Search & Filters */}
             <div className="flex flex-col md:flex-row gap-4">
@@ -68,11 +78,6 @@ export default function Groups() {
                     ))}
                   </SelectContent>
                 </Select>
-
-                <Button variant="outline" className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filters</span>
-                </Button>
               </div>
             </div>
           </motion.div>
@@ -80,63 +85,27 @@ export default function Groups() {
       </section>
 
       {/* Tribes Grid */}
-      <section className="py-8 md:py-12">
-        <div className="container">
-          {/* Quick Category Filters */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            <Badge 
-              variant={selectedCategory === 'all' ? 'secondary' : 'outline'}
-              className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap"
-              onClick={() => setSelectedCategory('all')}
-            >
-              All
-            </Badge>
-            {categories.slice(0, 6).map((cat) => (
-              <Badge 
-                key={cat.id}
-                variant={selectedCategory === cat.name ? 'secondary' : 'outline'}
-                className="cursor-pointer hover:bg-accent whitespace-nowrap"
-                onClick={() => setSelectedCategory(cat.name)}
-              >
-                {cat.name}
-              </Badge>
+      <section className="container py-12">
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} />
             ))}
           </div>
-
-          {/* Results Count */}
-          <p className="text-sm text-muted-foreground mb-6">
-            Showing {filteredTribes.length} tribes
-          </p>
-
-          {/* Grid */}
-          {isLoading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          ) : filteredTribes.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTribes.map((tribe, index) => (
-                <TribeCard key={tribe.id} tribe={tribe} index={index} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <Users className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No tribes found</h3>
-              <p className="text-muted-foreground mb-6">
-                Try adjusting your search or filters
-              </p>
-              <Button onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-              }}>
-                Clear Filters
-              </Button>
-            </div>
-          )}
-        </div>
+        ) : filteredTribes.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">No tribes found</p>
+            <Button asChild>
+              <Link to="/create-group">Create the first one!</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTribes.map((tribe) => (
+              <TribeCard key={tribe.id} tribe={tribe} />
+            ))}
+          </div>
+        )}
       </section>
     </Layout>
   );
