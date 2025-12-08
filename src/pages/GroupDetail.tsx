@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeChat } from '@/components/chat/TribeChat';
+import { EventCard } from '@/components/cards/EventCard';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -39,6 +40,8 @@ export default function GroupDetail() {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
   const [tribe, setTribe] = useState<Tribe | null>(null);
+  const [tribeEvents, setTribeEvents] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
 
@@ -64,6 +67,72 @@ export default function GroupDetail() {
 
     fetchTribe();
   }, [id]);
+
+  // Fetch tribe events
+  useEffect(() => {
+    if (!tribe?.id) return;
+
+    const fetchTribeEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, description, banner_url, starts_at, ends_at, location, organizer')
+          .eq('tribe_id', tribe.id)
+          .eq('is_cancelled', false)
+          .order('starts_at', { ascending: true });
+
+        if (error) throw error;
+        setTribeEvents((data as any[]) || []);
+      } catch (error) {
+        console.error('Error fetching tribe events:', error);
+      }
+    };
+
+    fetchTribeEvents();
+  }, [tribe?.id]);
+
+  // Fetch tribe members
+  useEffect(() => {
+    if (!tribe?.id) return;
+
+    const fetchMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tribe_members')
+          .select('user_id')
+          .eq('tribe_id', tribe.id);
+
+        if (error) throw error;
+        
+        if (!data || data.length === 0) {
+          setMembers([]);
+          return;
+        }
+
+        // Fetch profile data for all members
+        const userIds = data.map(item => item.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, bio')
+          .in('id', userIds);
+
+        if (profilesError) throw profilesError;
+        
+        const membersList = profilesData?.map(profile => ({
+          id: profile.id,
+          name: profile.full_name || 'Unknown User',
+          avatar_url: profile.avatar_url,
+          location: profile.bio || 'Member'
+        })) || [];
+        
+        setMembers(membersList);
+      } catch (error) {
+        console.error('Error fetching tribe members:', error);
+      }
+    };
+
+    fetchMembers();
+  }, [tribe?.id]);
 
   const handleJoin = () => {
     if (!isAuthenticated) {
@@ -237,7 +306,7 @@ export default function GroupDetail() {
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-heading font-semibold">
-                  Members ({tribe.member_count})
+                  Members ({members.length})
                 </h3>
               </div>
               
