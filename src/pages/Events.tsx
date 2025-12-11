@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar, MapPin, SlidersHorizontal } from 'lucide-react';
+import { Search, Filter, Calendar, MapPin, SlidersHorizontal, Plus } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EventCard } from '@/components/cards/EventCard';
 import { SkeletonEventCard } from '@/components/common/SkeletonCard';
 import { Badge } from '@/components/ui/badge';
-import { mockEvents, categories } from '@/data/mockData';
+import { useEvents } from '@/hooks/useEvents';
+import { categories } from '@/data/mockData';
 import {
   Select,
   SelectContent,
@@ -17,13 +19,13 @@ import {
 } from '@/components/ui/select';
 
 export default function Events() {
+  const { events, isLoading } = useEvents();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredEvents = mockEvents.filter((event) => {
+  const filteredEvents = events.filter((event) => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchQuery.toLowerCase());
+      event.description?.toLowerCase().includes(searchQuery.toLowerCase() || '');
     return matchesSearch;
   });
 
@@ -36,12 +38,22 @@ export default function Events() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">
-              Discover Events
-            </h1>
-            <p className="text-muted-foreground mb-6">
-              Find experiences that match your interests
-            </p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-heading font-bold mb-2">
+                  Discover Events
+                </h1>
+                <p className="text-muted-foreground">
+                  Find experiences that match your interests
+                </p>
+              </div>
+              <Button asChild className="gap-2">
+                <Link to="/create-event">
+                  <Plus className="h-4 w-4" />
+                  Create Event
+                </Link>
+              </Button>
+            </div>
 
             {/* Search & Filters */}
             <div className="flex flex-col md:flex-row gap-4">
@@ -118,7 +130,69 @@ export default function Events() {
           ) : filteredEvents.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((event, index) => (
-                <EventCard key={event.id} event={event} index={index} />
+                <Link key={event.id} to={`/events/${event.id}`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                  >
+                    <motion.div
+                      whileHover={{ y: -4 }}
+                      className="group relative overflow-hidden rounded-2xl bg-card border border-border shadow-card transition-all duration-300 hover:shadow-xl h-full"
+                    >
+                      {/* Cover Image */}
+                      <div className="aspect-[16/10] overflow-hidden relative bg-muted">
+                        {event.banner_url ? (
+                          <img
+                            src={event.banner_url}
+                            alt={event.title}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                            <Calendar className="h-12 w-12 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+                        
+                        {/* Date Badge */}
+                        <div className="absolute top-4 left-4 bg-card/90 backdrop-blur-sm rounded-xl p-2 text-center min-w-[60px] border border-border/50">
+                          <span className="block text-xs font-medium text-primary uppercase">
+                            {new Date(event.starts_at).toLocaleDateString('en-US', { month: 'short' })}
+                          </span>
+                          <span className="block text-2xl font-bold font-heading">
+                            {new Date(event.starts_at).getDate()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4 space-y-3">
+                        <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                          {event.title}
+                        </h3>
+                        
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {event.description}
+                        </p>
+
+                        {/* Meta */}
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          {event.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{event.location}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 flex-shrink-0" />
+                            <span>{new Date(event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                </Link>
               ))}
             </div>
           ) : (
@@ -128,7 +202,9 @@ export default function Events() {
               <p className="text-muted-foreground mb-6">
                 Try adjusting your search or filters
               </p>
-              <Button onClick={() => setSearchQuery('')}>Clear Search</Button>
+              <Button asChild>
+                <Link to="/create-event">Create an Event</Link>
+              </Button>
             </div>
           )}
         </div>

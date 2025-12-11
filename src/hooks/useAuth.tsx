@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -99,6 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
+    // Wait a moment for the trigger to create the profile
+    if (!error && data.user) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await fetchProfile(data.user.id);
+    }
     return { error: error as Error | null };
   };
 

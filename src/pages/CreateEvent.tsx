@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Users, Image, ArrowLeft, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Image, ArrowLeft, Loader2, X } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,14 +10,80 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function CreateEvent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isAuthenticated) {
+  // Form state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [price, setPrice] = useState('0');
+  const [bannerImage, setBannerImage] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Image must be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setBannerImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBannerPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadBannerImage = async (eventId: string): Promise<string | null> => {
+    if (!bannerImage) return null;
+
+    try {
+      const fileExt = bannerImage.name.split('.').pop();
+      const fileName = `${eventId}-${Date.now()}.${fileExt}`;
+      const filePath = `event-banners/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('events')
+        .upload(filePath, bannerImage);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('events')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Image upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  if (!isAuthenticated || !user) {
     return (
       <Layout>
         <div className="container py-20 text-center">
@@ -35,17 +101,82 @@ export default function CreateEvent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!title || !description || !startDate || !startTime) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isOnline && !location) {
+      toast({
+        title: "Missing location",
+        description: "Please enter a location for in-person events",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Event created!",
-      description: "Your event has been published successfully",
-    });
-    
-    navigate('/events');
+    try {
+      // Combine date and time into ISO strings
+      const startsAt = new Date(`${startDate}T${startTime}`).toISOString();
+      const endsAt = endDate && endTime 
+        ? new Date(`${endDate}T${endTime}`).toISOString()
+        : null;
+
+      // Create slug from title
+      const slug = title.toLowerCase().replace(/\s+/g, '-');
+
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          organizer: user.id,
+          title,
+          slug,
+          description,
+          location: isOnline ? 'Online' : location,
+          starts_at: startsAt,
+          ends_at: endsAt,
+          capacity: capacity ? parseInt(capacity) : null,
+          price: parseFloat(price || '0'),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Upload banner image if provided
+      if (data && bannerImage) {
+        const bannerUrl = await uploadBannerImage(data.id);
+        if (bannerUrl) {
+          await supabase
+            .from('events')
+            .update({ banner_url: bannerUrl })
+            .eq('id', data.id);
+        }
+      }
+
+      toast({
+        title: "Event created!",
+        description: "Your event has been published successfully",
+      });
+      
+      navigate('/events');
+    } catch (error: any) {
+      console.error('Error creating event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,9 +203,15 @@ export default function CreateEvent() {
             <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
               <h2 className="font-semibold">Basic Information</h2>
               
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor="title">Event Title</Label>
-                <Input id="title" placeholder="Give your event a catchy title" required />
+                <Input 
+                  id="title" 
+                  placeholder="Give your event a catchy title" 
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required 
+                />
               </div>
 
               <div className="space-y-2">
@@ -83,18 +220,51 @@ export default function CreateEvent() {
                   id="description"
                   placeholder="What's your event about? What can attendees expect?"
                   rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="cover">Cover Image</Label>
-                <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                  <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Click to upload or drag and drop
-                  </p>
-                </div>
+                {bannerPreview ? (
+                  <div className="relative">
+                    <img
+                      src={bannerPreview}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBannerImage(null);
+                        setBannerPreview(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  >
+                    <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload or drag and drop
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
               </div>
             </div>
 
@@ -108,22 +278,44 @@ export default function CreateEvent() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="start-date">Start Date</Label>
-                  <Input id="start-date" type="date" required />
+                  <Input 
+                    id="start-date" 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="start-time">Start Time</Label>
-                  <Input id="start-time" type="time" required />
+                  <Input 
+                    id="start-time" 
+                    type="time" 
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    required 
+                  />
                 </div>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="end-date">End Date</Label>
-                  <Input id="end-date" type="date" />
+                  <Input 
+                    id="end-date" 
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end-time">End Time</Label>
-                  <Input id="end-time" type="time" />
+                  <Input 
+                    id="end-time" 
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -153,12 +345,13 @@ export default function CreateEvent() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="venue">Venue Name</Label>
-                    <Input id="venue" placeholder="e.g., TechHub SF" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input id="address" placeholder="123 Main Street, City, State" />
+                    <Label htmlFor="location">Location</Label>
+                    <Input 
+                      id="location" 
+                      placeholder="e.g., 123 Main Street, San Francisco, CA"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    />
                   </div>
                 </>
               )}
@@ -173,7 +366,26 @@ export default function CreateEvent() {
               
               <div className="space-y-2">
                 <Label htmlFor="max-attendees">Maximum Attendees (optional)</Label>
-                <Input id="max-attendees" type="number" placeholder="Leave empty for unlimited" />
+                <Input 
+                  id="max-attendees" 
+                  type="number" 
+                  placeholder="Leave empty for unlimited"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="price">Ticket Price (optional)</Label>
+                <Input 
+                  id="price" 
+                  type="number" 
+                  placeholder="0"
+                  step="0.01"
+                  min="0"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
               </div>
             </div>
 

@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, 
@@ -7,23 +8,76 @@ import {
   Clock, 
   Share2, 
   Heart,
-  Video,
   ArrowLeft,
-  ExternalLink
+  Loader2
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { mockEvents, mockUsers } from '@/data/mockData';
-import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+interface Event {
+  id: string;
+  tribe_id?: string | null;
+  organizer?: string;
+  title: string;
+  slug?: string;
+  description?: string | null;
+  banner_url?: string | null;
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  starts_at: string;
+  ends_at?: string | null;
+  capacity?: number | null;
+  price?: number;
+  is_cancelled?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
 
 export default function EventDetail() {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
-  const event = mockEvents.find(e => e.id === id);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      if (!id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        setEvent(data);
+      } catch (error) {
+        console.error('Error fetching event:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   if (!event) {
     return (
@@ -38,10 +92,9 @@ export default function EventDetail() {
     );
   }
 
-  const startDate = new Date(event.start_date);
-  const endDate = event.end_date ? new Date(event.end_date) : null;
-  const attendees = mockUsers.slice(0, 5);
-  const isFull = event.max_attendees ? event.attendee_count >= event.max_attendees : false;
+  const startDate = new Date(event.starts_at);
+  const endDate = event.ends_at ? new Date(event.ends_at) : null;
+  const isFull = event.capacity ? event.capacity <= 0 : false;
 
   const handleRSVP = () => {
     if (!isAuthenticated) {
@@ -52,20 +105,26 @@ export default function EventDetail() {
       return;
     }
     toast({
-      title: "You're going!",
-      description: "We've added this event to your calendar",
+      title: "RSVP Confirmed!",
+      description: `You're going to ${event.title}`,
     });
   };
 
   return (
     <Layout>
       {/* Hero Image */}
-      <div className="relative h-[40vh] md:h-[50vh] overflow-hidden">
-        <img
-          src={event.cover_image || `https://picsum.photos/1600/900?random=${event.id}`}
-          alt={event.title}
-          className="w-full h-full object-cover"
-        />
+      <div className="relative h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
+        {event.banner_url ? (
+          <img
+            src={event.banner_url}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <Calendar className="h-20 w-20 text-muted-foreground/30" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         
         {/* Back Button */}
@@ -80,9 +139,8 @@ export default function EventDetail() {
 
         {/* Badges */}
         <div className="absolute top-4 right-4 flex gap-2">
-          {event.is_online && (
+          {event.location === 'Online' && (
             <Badge className="bg-secondary text-secondary-foreground">
-              <Video className="h-3 w-3 mr-1" />
               Online
             </Badge>
           )}
@@ -126,55 +184,19 @@ export default function EventDetail() {
               </h1>
 
               <div className="flex flex-wrap gap-4 mb-6">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{event.venue_name || event.location}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{event.attendee_count} attending</span>
-                </div>
+                {event.location && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{event.location}</span>
+                  </div>
+                )}
               </div>
 
               <div className="prose prose-sm dark:prose-invert max-w-none">
                 <h3 className="font-heading">About this event</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {event.description}
+                  {event.description || 'No description provided'}
                 </p>
-              </div>
-            </motion.div>
-
-            {/* Attendees */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-card rounded-2xl border border-border p-6 shadow-card"
-            >
-              <h3 className="font-heading font-semibold mb-4">
-                Attendees ({event.attendee_count})
-              </h3>
-              <div className="flex flex-wrap gap-3">
-                {attendees.map((user) => (
-                  <Link
-                    key={user.id}
-                    to={`/profile/${user.id}`}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar_url} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">{user.name}</span>
-                  </Link>
-                ))}
-                {event.attendee_count > 5 && (
-                  <div className="flex items-center gap-2 p-2">
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                      <span className="text-sm font-medium">+{event.attendee_count - 5}</span>
-                    </div>
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>
@@ -211,37 +233,31 @@ export default function EventDetail() {
               </div>
 
               <div className="mt-6 pt-6 border-t border-border space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Location</p>
-                  <p className="font-medium">{event.venue_name}</p>
-                  <p className="text-sm text-muted-foreground">{event.location}</p>
-                  {event.is_online && event.online_link && (
-                    <Button variant="link" className="p-0 h-auto mt-2" asChild>
-                      <a href={event.online_link} target="_blank" rel="noopener noreferrer">
-                        Join online <ExternalLink className="h-3 w-3 ml-1" />
-                      </a>
-                    </Button>
-                  )}
-                </div>
-
-                {event.max_attendees && (
+                {event.location && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Spots Available</p>
-                    <p className="font-medium">
-                      {event.max_attendees - event.attendee_count} of {event.max_attendees}
-                    </p>
-                    <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-secondary rounded-full transition-all"
-                        style={{ width: `${(event.attendee_count / event.max_attendees) * 100}%` }}
-                      />
-                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">Location</p>
+                    <p className="font-medium">{event.location}</p>
+                  </div>
+                )}
+
+                {event.price > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Ticket Price</p>
+                    <p className="font-medium">${event.price}</p>
+                  </div>
+                )}
+
+                {event.capacity && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Capacity</p>
+                    <p className="font-medium">{event.capacity} attendees</p>
                   </div>
                 )}
               </div>
             </motion.div>
           </div>
-        </div>
+
+          </div>
       </div>
     </Layout>
   );

@@ -180,6 +180,28 @@ begin
 end;
 $$;
 
+-- Handle new user - create profile on signup
+create or replace function public.handle_new_user() returns trigger language plpgsql as $$
+begin
+  insert into public.profiles (id, full_name, created_at, updated_at)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    now(),
+    now()
+  );
+  return new;
+exception when others then
+  -- Log the error but don't fail the signup
+  raise warning 'Error creating profile for user %: %', new.id, sqlerrm;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created after insert on auth.users for each row
+  execute procedure public.handle_new_user();
+
 create trigger set_timestamp_profiles before update on public.profiles for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_tribes before update on public.tribes for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_events before update on public.events for each row execute procedure public.set_timestamp();
+
