@@ -205,3 +205,12 @@ create trigger set_timestamp_profiles before update on public.profiles for each 
 create trigger set_timestamp_tribes before update on public.tribes for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_events before update on public.events for each row execute procedure public.set_timestamp();
 
+-- Allow authenticated users to upload to any bucket
+create policy "storage_insert_authenticated" on storage.objects
+  for insert
+  with check (auth.role() = 'authenticated');
+
+-- Allow public read access to objects (optional, for displaying images)
+create policy "storage_select_public" on storage.objects
+  for select
+  using (true);

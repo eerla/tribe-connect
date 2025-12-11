@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
-import { mockTribes, mockEvents } from '@/data/mockData';
+import { useTribes } from '@/hooks/useTribes';
+import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
@@ -25,8 +26,11 @@ export default function Profile() {
   const displayLocation = isOwnProfile ? profile?.location : null;
   const createdAt = currentUser?.created_at || new Date().toISOString();
   
-  const userTribes = mockTribes.slice(0, 2);
-  const userEvents = mockEvents.slice(0, 2);
+  const { tribes } = useTribes();
+  const { events } = useEvents();
+
+  const userTribes = tribes?.filter((t) => t.owner === currentUser?.id).slice(0, 2) || [];
+  const userEvents = events?.filter((e) => e.organizer === currentUser?.id).slice(0, 2) || [];
 
   if (!isOwnProfile && !id) {
     return (

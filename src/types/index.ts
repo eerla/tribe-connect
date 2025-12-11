@@ -30,8 +30,8 @@ export interface Event {
   cover_image?: string;
   location: string;
   venue_name?: string;
-  start_date: string;
-  end_date?: string;
+  starts_at: string;
+  ends_at?: string;
   max_attendees?: number;
   attendee_count: number;
   is_online: boolean;

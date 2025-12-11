@@ -11,7 +11,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, index = 0 }: EventCardProps) {
-  const startDate = new Date(event.start_date);
+  const startDate = new Date(event.starts_at);
   const isFull = event.max_attendees ? event.attendee_count >= event.max_attendees : false;
 
   return (

@@ -18,7 +18,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { categories } from '@/data/mockData';
+import { categories } from '@/data/categories';
 
 export default function CreateGroup() {
   const { user, isAuthenticated } = useAuth();

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useTribes } from '@/hooks/useTribes';
-import { categories } from '@/data/mockData';
+import { categories } from '@/data/categories';
 import {
   Select,
   SelectContent,
@@ -47,7 +47,7 @@ export default function Groups() {
                 </p>
               </div>
               <Button asChild className="gap-2">
-                <Link to="/create-group">
+                <Link to="/groups/create">
                   <Plus className="h-4 w-4" />
                   Create Tribe
                 </Link>
