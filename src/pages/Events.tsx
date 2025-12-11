@@ -9,7 +9,7 @@ import { EventCard } from '@/components/cards/EventCard';
 import { SkeletonEventCard } from '@/components/common/SkeletonCard';
 import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';
-import { categories } from '@/data/mockData';
+import { categories } from '@/data/categories';
 import {
   Select,
   SelectContent,
@@ -48,7 +48,7 @@ export default function Events() {
                 </p>
               </div>
               <Button asChild className="gap-2">
-                <Link to="/create-event">
+                <Link to="/events/create">
                   <Plus className="h-4 w-4" />
                   Create Event
                 </Link>

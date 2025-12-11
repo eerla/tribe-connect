@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_KEY;
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Service Key:', supabaseServiceKey ? 'Exists' : 'Missing');
 if (!supabaseUrl || !supabaseServiceKey) {

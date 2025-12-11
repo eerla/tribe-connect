@@ -35,7 +35,7 @@ export function useEvents() {
           .select('*')
           .eq('is_cancelled', false)
           .order('starts_at', { ascending: true });
-
+        // console.log(' events response:', data);
         if (error) throw error;
         setEvents(data || []);
       } catch (err) {

@@ -5,7 +5,8 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
-import { mockTribes, mockEvents } from '@/data/mockData';
+import { useTribes } from '@/hooks/useTribes';
+import { useEvents } from '@/hooks/useEvents';
 import { toast } from '@/hooks/use-toast';
 
 export default function Explore() {
@@ -45,8 +46,11 @@ export default function Explore() {
     );
   };
 
-  const nearbyTribes = mockTribes.slice(0, 4);
-  const nearbyEvents = mockEvents.slice(0, 4);
+  const { tribes } = useTribes();
+  const { events } = useEvents();
+
+  const nearbyTribes = tribes?.slice(0, 4) || [];
+  const nearbyEvents = events?.slice(0, 4) || [];
 
   return (
     <Layout>

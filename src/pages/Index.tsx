@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
 import { CategoryIcon } from '@/components/common/CategoryIcon';
-import { mockTribes, mockEvents, categories } from '@/data/mockData';
+import { categories } from '@/data/categories';
 import { useState } from 'react';
+import { useTribes } from '@/hooks/useTribes';
+import { useEvents } from '@/hooks/useEvents';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -25,8 +27,11 @@ const itemVariants = {
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
-  const featuredTribes = mockTribes.slice(0, 3);
-  const upcomingEvents = mockEvents.slice(0, 3);
+  const { tribes } = useTribes();
+  const { events } = useEvents();
+
+  const featuredTribes = tribes?.slice(0, 3) || [];
+  const upcomingEvents = events?.slice(0, 3) || [];
 
   return (
     <Layout>
