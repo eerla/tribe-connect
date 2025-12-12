@@ -243,39 +243,15 @@ create policy "storage_select_public_avatars" on storage.objects
 -- Enable RLS on storage objects (run once):
 alter table storage.objects enable row level security;
 
-create policy \"storage_insert_authenticated_<bucket>\" on storage.objects
-  for insert
-  with check ( auth.role() = 'authenticated' AND bucket_id = '<bucket>' );
+-- create policy \"storage_insert_authenticated_<bucket>\" on storage.objects
+--   for insert
+--   with check ( auth.role() = 'authenticated' AND bucket_id = '<bucket>' );
 
-  create policy \"storage_select_public_<bucket>\" on storage.objects
-  for select
-  using ( bucket_id = '<bucket>' );
+--   create policy \"storage_select_public_<bucket>\" on storage.objects
+--   for select
+--   using ( bucket_id = '<bucket>' );
 
   -- Repeat the two create policy statements for each bucket (avatars, events, tribes).
 
 
 
-  -- Recreate handle_new_user as security definer so trigger can insert profile rows
-create or replace function public.handle_new_user() returns trigger
-  language plpgsql
-  security definer
-as $$
-begin
-  -- insert a minimal profile; if already exists, ignore unique violation
-  insert into public.profiles (id, full_name, created_at, updated_at)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    now(),
-    now()
-  );
-  return new;
-exception when unique_violation then
-  -- if profile already exists, do nothing
-  return new;
-exception when others then
-  -- log and continue (do not prevent signup)
-  raise warning 'handle_new_user failed for user %: %', new.id, sqlerrm;
-  return new;
-end;
-$$;

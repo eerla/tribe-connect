@@ -15,6 +15,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserEvents } from '@/hooks/useEvents';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -43,6 +44,7 @@ interface Event {
 export default function EventDetail() {
   const { id } = useParams();
   const { isAuthenticated, user } = useAuth();
+  const { refetch: refetchUserEvents } = useUserEvents(user?.id);
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRSVPed, setIsRSVPed] = useState(false);
@@ -69,6 +71,42 @@ export default function EventDetail() {
 
     fetchEvent();
   }, [id]);
+
+  // Check if current user is attending
+  useEffect(() => {
+    if (!id) return;
+
+    if (!user?.id) {
+      setIsRSVPed(false);
+      return;
+    }
+
+    const checkAttendance = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('event_attendees')
+          .select('id')
+          .match({ event_id: id, user_id: user.id })
+          .limit(1);
+
+        if (error) {
+          setIsRSVPed(false);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setIsRSVPed(true);
+        } else {
+          setIsRSVPed(false);
+        }
+      } catch (err) {
+        console.error('Error checking attendance:', err);
+        setIsRSVPed(false);
+      }
+    };
+
+    checkAttendance();
+  }, [id, user?.id]);
 
   if (isLoading) {
     return (
@@ -124,9 +162,18 @@ export default function EventDetail() {
           status: 'going',
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' || (error.message || '').includes('duplicate')) {
+          setIsRSVPed(true);
+          return;
+        }
+        throw error;
+      }
 
       setIsRSVPed(true);
+      if (typeof refetchUserEvents === 'function') {
+        try { await refetchUserEvents(); } catch {}
+      }
       toast({
         title: "RSVP Confirmed!",
         description: `You're going to ${event.title}`,
@@ -138,6 +185,32 @@ export default function EventDetail() {
         description: error.message || "Failed to RSVP",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleUnRSVP = async () => {
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Please sign in to change attendance' });
+      return;
+    }
+    if (!user?.id || !event?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('event_attendees')
+        .delete()
+        .match({ event_id: event.id, user_id: user.id });
+
+      if (error) throw error;
+
+      setIsRSVPed(false);
+      if (typeof refetchUserEvents === 'function') {
+        try { await refetchUserEvents(); } catch {};
+      }
+      toast({ title: "You're no longer attending", description: `You left ${event.title}` });
+    } catch (err: any) {
+      console.error('Error leaving event:', err);
+      toast({ title: 'Error', description: err.message || 'Failed to leave event', variant: 'destructive' });
     }
   };
 
@@ -241,14 +314,14 @@ export default function EventDetail() {
               className="bg-card rounded-2xl border border-border p-6 shadow-card sticky top-24"
             >
               <div className="space-y-4">
-                <Button 
-                  variant="hero" 
-                  size="lg" 
+                <Button
+                  variant={isRSVPed ? 'destructive' : 'hero'}
+                  size="lg"
                   className="w-full"
-                  onClick={handleRSVP}
+                  onClick={isRSVPed ? handleUnRSVP : handleRSVP}
                   disabled={isFull}
                 >
-                  {isFull ? 'Event Full' : 'RSVP Now'}
+                  {isFull ? 'Event Full' : (isRSVPed ? 'Attending — Cancel' : 'RSVP Now')}
                 </Button>
 
                 <div className="flex gap-2">

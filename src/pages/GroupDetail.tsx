@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeChat } from '@/components/chat/TribeChat';
 import { EventCard } from '@/components/cards/EventCard';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserTribes } from '@/hooks/useTribes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -39,6 +40,7 @@ interface Tribe {
 export default function GroupDetail() {
   const { id } = useParams();
   const { isAuthenticated, user } = useAuth();
+  const { refetch: refetchUserTribes } = useUserTribes(user?.id);
   const [tribe, setTribe] = useState<Tribe | null>(null);
   const [tribeEvents, setTribeEvents] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -103,28 +105,29 @@ export default function GroupDetail() {
           .eq('tribe_id', tribe.id);
 
         if (error) throw error;
-        
-        if (!data || data.length === 0) {
+
+        const userIds = (data || []).map((item: any) => item.user_id);
+        setIsMember(Boolean(user?.id && userIds.includes(user.id)));
+
+        if (userIds.length === 0) {
           setMembers([]);
           return;
         }
 
-        // Fetch profile data for all members
-        const userIds = data.map(item => item.user_id);
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url, bio')
           .in('id', userIds);
 
         if (profilesError) throw profilesError;
-        
-        const membersList = profilesData?.map(profile => ({
+
+        const membersList = (profilesData || []).map((profile: any) => ({
           id: profile.id,
           name: profile.full_name || 'Unknown User',
           avatar_url: profile.avatar_url,
           location: profile.bio || 'Member'
-        })) || [];
-        
+        }));
+
         setMembers(membersList);
       } catch (error) {
         console.error('Error fetching tribe members:', error);
@@ -132,7 +135,7 @@ export default function GroupDetail() {
     };
 
     fetchMembers();
-  }, [tribe?.id]);
+  }, [tribe?.id, user?.id]);
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -152,7 +155,7 @@ export default function GroupDetail() {
       return;
     }
 
-    try {
+      try {
       const { error } = await supabase
         .from('tribe_members')
         .insert({
@@ -161,9 +164,38 @@ export default function GroupDetail() {
           role: 'member',
         });
 
-      if (error) throw error;
+      if (error) {
+        // treat duplicate key as success
+        if (error.code === '23505' || (error.message || '').includes('duplicate')) {
+          setIsMember(true);
+          return;
+        }
+        throw error;
+      }
 
+      // refresh members list
       setIsMember(true);
+      if (typeof refetchUserTribes === 'function') {
+        try { await refetchUserTribes(); } catch {};
+      }
+      try {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, bio')
+          .in('id', [user.id]);
+
+        if (profilesData && profilesData.length > 0) {
+          setMembers(prev => [{
+            id: profilesData[0].id,
+            name: profilesData[0].full_name || 'You',
+            avatar_url: profilesData[0].avatar_url,
+            location: profilesData[0].bio || 'Member'
+          }, ...prev]);
+        }
+      } catch (err) {
+        // ignore member refresh errors
+      }
+
       toast({
         title: "Welcome to the tribe!",
         description: `You've joined ${tribe.title || 'this tribe'}`,
@@ -177,6 +209,38 @@ export default function GroupDetail() {
       });
     }
   };
+
+  const handleLeave = async () => {
+    if (!isAuthenticated) {
+      toast({ title: "Sign in required", description: "Please sign in to leave this tribe" });
+      return;
+    }
+    if (!user?.id || !tribe?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('tribe_members')
+        .delete()
+        .match({ tribe_id: tribe.id, user_id: user.id });
+
+      if (error) throw error;
+
+      setIsMember(false);
+      setMembers(prev => prev.filter(m => m.id !== user.id));
+      // refetch profile lists if available:
+      if (typeof refetchUserTribes === 'function') {
+        try { await refetchUserTribes(); } catch {}
+      }
+      toast({ title: "Left tribe", description: `You left ${tribe.title || 'this tribe'}` });
+    } catch (err: any) {
+      console.error('Error leaving tribe:', err);
+      toast({ 
+        title: "Error", 
+        description: err.message || "Failed to leave tribe", 
+        variant: "destructive" 
+      });
+    }
+};
 
   if (isLoading) {
     return (
@@ -271,9 +335,22 @@ export default function GroupDetail() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="hero" size="lg" onClick={handleJoin}>
-                Join Tribe
-              </Button>
+              {/* {isMember ? (
+                <Button variant="destructive" size="lg" onClick={handleLeave}>
+                  Leave Tribe
+                </Button>
+              ) : (
+                <Button variant="hero" size="lg" onClick={handleJoin}>
+                  Join Tribe
+                </Button>
+              )} */}
+              {isMember ? (
+                <Button variant="destructive" size="lg" onClick={handleLeave}>
+                  Leave Tribe</Button>
+              ) : (
+                <Button variant="hero" size="lg" onClick={handleJoin}>
+                  Join Tribe</Button>
+              )}
               <Button variant="outline" size="lg">
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
