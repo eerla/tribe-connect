@@ -42,9 +42,10 @@ interface Event {
 
 export default function EventDetail() {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRSVPed, setIsRSVPed] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -96,7 +97,7 @@ export default function EventDetail() {
   const endDate = event.ends_at ? new Date(event.ends_at) : null;
   const isFull = event.capacity ? event.capacity <= 0 : false;
 
-  const handleRSVP = () => {
+  const handleRSVP = async () => {
     if (!isAuthenticated) {
       toast({
         title: "Sign in required",
@@ -104,10 +105,40 @@ export default function EventDetail() {
       });
       return;
     }
-    toast({
-      title: "RSVP Confirmed!",
-      description: `You're going to ${event.title}`,
-    });
+
+    if (!user?.id || !event?.id) {
+      toast({
+        title: "Error",
+        description: "Missing user or event information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('event_attendees')
+        .insert({
+          event_id: event.id,
+          user_id: user.id,
+          status: 'going',
+        });
+
+      if (error) throw error;
+
+      setIsRSVPed(true);
+      toast({
+        title: "RSVP Confirmed!",
+        description: `You're going to ${event.title}`,
+      });
+    } catch (error: any) {
+      console.error('Error RSVPing to event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to RSVP",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

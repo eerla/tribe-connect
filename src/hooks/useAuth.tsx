@@ -116,17 +116,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('Not authenticated') };
-    
-    const { error } = await supabase
+    // Ensure we have the user's id for insert/upsert
+    const payload = { ...updates, id: user.id } as Partial<Profile> & { id: string };
+
+    // Use upsert so if the profile row doesn't exist we create it (useful if trigger didn't run)
+    const { data, error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
-    
-    if (!error) {
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      .upsert(payload, { returning: 'representation' });
+
+    if (error) {
+      return { error: error as Error | null };
     }
-    
-    return { error: error as Error | null };
+
+    // If the upsert returned the row, use it; otherwise re-fetch to be safe
+    if (data && Array.isArray(data) && data.length > 0) {
+      setProfile(data[0] as Profile);
+    } else if (data && !Array.isArray(data)) {
+      setProfile(data as Profile);
+    } else {
+      await fetchProfile(user.id);
+    }
+
+    return { error: null };
   };
 
   return (

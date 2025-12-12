@@ -1,20 +1,34 @@
 import { useParams, Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Settings, Edit } from 'lucide-react';
+import { MapPin, Calendar, Users, Settings, Edit, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
-import { useTribes } from '@/hooks/useTribes';
-import { useEvents } from '@/hooks/useEvents';
+import { useUserTribes } from '@/hooks/useTribes';
+import { useUserEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
 export default function Profile() {
   const { id } = useParams();
   const { user: currentUser, profile, isAuthenticated } = useAuth();
+  const [openSections, setOpenSections] = useState({
+    createdTribes: true,
+    joinedTribes: true,
+    organizedEvents: true,
+    attendingEvents: true,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section as keyof typeof prev]
+    }));
+  };
   
   const isOwnProfile = id === 'me' || id === currentUser?.id;
   
@@ -26,11 +40,11 @@ export default function Profile() {
   const displayLocation = isOwnProfile ? profile?.location : null;
   const createdAt = currentUser?.created_at || new Date().toISOString();
   
-  const { tribes } = useTribes();
-  const { events } = useEvents();
+  const { createdTribes, joinedTribes } = useUserTribes(currentUser?.id);
+  const { organizedEvents, attendingEvents } = useUserEvents(currentUser?.id);
 
-  const userTribes = tribes?.filter((t) => t.owner === currentUser?.id).slice(0, 2) || [];
-  const userEvents = events?.filter((e) => e.organizer === currentUser?.id).slice(0, 2) || [];
+  const totalTribes = createdTribes.length + joinedTribes.length;
+  const totalEvents = organizedEvents.length + attendingEvents.length;
 
   if (!isOwnProfile && !id) {
     return (
@@ -117,7 +131,7 @@ export default function Profile() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Users className="h-4 w-4" />
-                  {userTribes.length} tribes
+                  {totalTribes} tribes
                 </span>
               </div>
             </div>
@@ -125,86 +139,200 @@ export default function Profile() {
             {/* Stats */}
             <div className="flex gap-8 p-4 bg-muted/50 rounded-xl">
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">{userTribes.length}</p>
+                <p className="text-2xl font-bold font-heading">{totalTribes}</p>
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">{userEvents.length}</p>
+                <p className="text-2xl font-bold font-heading">{totalEvents}</p>
                 <p className="text-sm text-muted-foreground">Events</p>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Content Tabs */}
-        <Tabs defaultValue="tribes">
-          <TabsList className="bg-muted/50 p-1 mb-6">
-            <TabsTrigger value="tribes" className="gap-2">
-              <Users className="h-4 w-4" />
-              Tribes
-            </TabsTrigger>
-            <TabsTrigger value="events" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Events
-            </TabsTrigger>
-          </TabsList>
+        {/* Tribes Section */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              My Tribes
+            </h2>
+            {isOwnProfile && totalTribes === 0 && (
+              <Button asChild size="sm">
+                <Link to="/groups/create">Create Tribe</Link>
+              </Button>
+            )}
+          </div>
 
-          <TabsContent value="tribes">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+          {/* Created Tribes Subsection */}
+          <div className="mb-10">
+            <Collapsible
+              open={openSections.createdTribes}
+              onOpenChange={() => toggleSection('createdTribes')}
             >
-              {userTribes.length > 0 ? (
-                <div className="grid md:grid-cols-2 gap-6">
-                  {userTribes.map((tribe, index) => (
-                    <TribeCard key={tribe.id} tribe={tribe} index={index} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16 bg-muted/30 rounded-2xl">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No tribes yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {isOwnProfile ? "You haven't joined any tribes yet" : `${displayName} hasn't joined any tribes yet`}
-                  </p>
-                  {isOwnProfile && (
-                    <Button asChild>
-                      <Link to="/groups">Explore Tribes</Link>
-                    </Button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </TabsContent>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <h3 className="text-lg font-semibold group-hover:text-primary">
+                    Created by Me ({createdTribes.length})
+                  </h3>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.createdTribes ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {createdTribes.length > 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                  >
+                    {createdTribes.map((tribe, index) => (
+                      <TribeCard key={tribe.id} tribe={tribe} index={index} />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                    <p className="text-muted-foreground">
+                      {isOwnProfile ? "You haven't created any tribes yet" : `${displayName} hasn't created any tribes yet`}
+                    </p>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-          <TabsContent value="events">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+          {/* Joined Tribes Subsection */}
+          <div>
+            <Collapsible
+              open={openSections.joinedTribes}
+              onOpenChange={() => toggleSection('joinedTribes')}
             >
-              {userEvents.length > 0 ? (
-                <div className="grid md:grid-cols-2 gap-6">
-                  {userEvents.map((event, index) => (
-                    <EventCard key={event.id} event={event} index={index} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16 bg-muted/30 rounded-2xl">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No events yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {isOwnProfile ? "You haven't attended any events yet" : `${displayName} hasn't attended any events yet`}
-                  </p>
-                  {isOwnProfile && (
-                    <Button asChild>
-                      <Link to="/events">Explore Events</Link>
-                    </Button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </TabsContent>
-        </Tabs>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <h3 className="text-lg font-semibold group-hover:text-primary">
+                    I've Joined ({joinedTribes.length})
+                  </h3>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.joinedTribes ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {joinedTribes.length > 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                  >
+                    {joinedTribes.map((tribe, index) => (
+                      <TribeCard key={tribe.id} tribe={tribe} index={index} />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                    <p className="text-muted-foreground">
+                      {isOwnProfile ? "You haven't joined any tribes yet" : `${displayName} hasn't joined any tribes yet`}
+                    </p>
+                    {isOwnProfile && (
+                      <Button asChild size="sm" variant="outline" className="mt-4">
+                        <Link to="/groups">Explore Tribes</Link>
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        </div>
+
+        {/* Events Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
+              <Calendar className="h-6 w-6" />
+              My Events
+            </h2>
+            {isOwnProfile && totalEvents === 0 && (
+              <Button asChild size="sm">
+                <Link to="/events/create">Create Event</Link>
+              </Button>
+            )}
+          </div>
+
+          {/* Organized Events Subsection */}
+          <div className="mb-10">
+            <Collapsible
+              open={openSections.organizedEvents}
+              onOpenChange={() => toggleSection('organizedEvents')}
+            >
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <h3 className="text-lg font-semibold group-hover:text-primary">
+                    Organized by Me ({organizedEvents.length})
+                  </h3>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.organizedEvents ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {organizedEvents.length > 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                  >
+                    {organizedEvents.map((event, index) => (
+                      <EventCard key={event.id} event={event} index={index} />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                    <p className="text-muted-foreground">
+                      {isOwnProfile ? "You haven't organized any events yet" : `${displayName} hasn't organized any events yet`}
+                    </p>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Attending Events Subsection */}
+          <div>
+            <Collapsible
+              open={openSections.attendingEvents}
+              onOpenChange={() => toggleSection('attendingEvents')}
+            >
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                  <h3 className="text-lg font-semibold group-hover:text-primary">
+                    I'm Attending ({attendingEvents.length})
+                  </h3>
+                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.attendingEvents ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {attendingEvents.length > 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                  >
+                    {attendingEvents.map((event, index) => (
+                      <EventCard key={event.id} event={event} index={index} />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                    <p className="text-muted-foreground">
+                      {isOwnProfile ? "You haven't attended any events yet" : `${displayName} hasn't attended any events yet`}
+                    </p>
+                    {isOwnProfile && (
+                      <Button asChild size="sm" variant="outline" className="mt-4">
+                        <Link to="/events">Explore Events</Link>
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        </div>
       </div>
     </Layout>
   );

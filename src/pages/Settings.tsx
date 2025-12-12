@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sun, Moon, Monitor, User, Bell, Shield, LogOut, Loader2 } from 'lucide-react';
@@ -23,6 +23,16 @@ export default function Settings() {
   const [location, setLocation] = useState(profile?.location || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state with profile changes
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || '');
+      setBio(profile.bio || '');
+      setLocation(profile.location || '');
+      setAvatarUrl(profile.avatar_url || '');
+    }
+  }, [profile]);
 
   const handleLogout = async () => {
     await logout();
@@ -92,7 +102,7 @@ export default function Settings() {
               <div>
                 <Label className="mb-2 block">Profile Photo</Label>
                 <ImageUpload
-                  bucket="tcpublic"
+                  bucket="avatars"
                   folder="avatars"
                   currentUrl={avatarUrl}
                   onUpload={setAvatarUrl}

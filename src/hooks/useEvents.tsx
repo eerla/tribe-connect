@@ -86,3 +86,63 @@ export function useEventById(eventId: string) {
 
   return { event, isLoading, error };
 }
+
+export function useUserEvents(userId: string | undefined) {
+  const [organizedEvents, setOrganizedEvents] = useState<Event[]>([]);
+  const [attendingEvents, setAttendingEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchUserEvents = async () => {
+      try {
+        // Get events the user organized
+        const { data: organizedData, error: organizedError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('organizer', userId)
+          .eq('is_cancelled', false);
+
+        if (organizedError) throw organizedError;
+        setOrganizedEvents(organizedData || []);
+
+        // Get events the user is attending via event_attendees
+        const { data: attendeesData, error: attendeesError } = await supabase
+          .from('event_attendees')
+          .select('event_id')
+          .eq('user_id', userId);
+
+        if (attendeesError) throw attendeesError;
+
+        const attendeeEventIds = attendeesData?.map(a => a.event_id) || [];
+        
+        if (attendeeEventIds.length > 0) {
+          const { data: attendingData, error: attendingError } = await supabase
+            .from('events')
+            .select('*')
+            .in('id', attendeeEventIds)
+            .eq('is_cancelled', false);
+
+          if (attendingError) throw attendingError;
+          setAttendingEvents(attendingData || []);
+        } else {
+          setAttendingEvents([]);
+        }
+      } catch (err) {
+        setError(err as Error);
+        console.error('Error fetching user events:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserEvents();
+  }, [userId]);
+
+  return { organizedEvents, attendingEvents, isLoading, error };
+}

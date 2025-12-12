@@ -10,7 +10,8 @@ create table if not exists public.profiles (
   bio text,
   avatar_url text,
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  location text
 );
 
 -- Tribes (groups)
@@ -181,21 +182,30 @@ end;
 $$;
 
 -- Handle new user - create profile on signup
-create or replace function public.handle_new_user() returns trigger language plpgsql as $$
-begin
-  insert into public.profiles (id, full_name, created_at, updated_at)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+-- Recreate handle_new_user as security definer so trigger can insert profile rows
+CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+AS $$
+BEGIN
+  -- insert a minimal profile; if already exists, ignore unique violation
+  INSERT INTO public.profiles (id, full_name, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     now(),
     now()
   );
-  return new;
-exception when others then
-  -- Log the error but don't fail the signup
-  raise warning 'Error creating profile for user %: %', new.id, sqlerrm;
-  return new;
-end;
+  RETURN NEW;
+EXCEPTION
+  WHEN unique_violation THEN
+    -- if profile already exists, do nothing
+    RETURN NEW;
+  WHEN others THEN
+    -- log and continue (do not prevent signup)
+    RAISE WARNING 'handle_new_user failed for user %: % (sqlstate=%)', NEW.id, SQLERRM, SQLSTATE;
+    RETURN NEW;
+END;
 $$;
 
 create trigger on_auth_user_created after insert on auth.users for each row
@@ -214,3 +224,58 @@ create policy "storage_insert_authenticated" on storage.objects
 create policy "storage_select_public" on storage.objects
   for select
   using (true);
+
+
+-- Allow authenticated users to upload to avatars bucket
+create policy "storage_insert_authenticated_avatars" on storage.objects
+  for insert
+  with check (auth.role() = 'authenticated' AND bucket_id = 'avatars');
+
+-- Allow public read access to avatars
+create policy "storage_select_public_avatars" on storage.objects
+  for select
+  using (bucket_id = 'avatars');
+
+-- -- Add missing location column to profiles table -- #TODO
+-- alter table public.profiles 
+-- add column if not exists location text;
+
+-- Enable RLS on storage objects (run once):
+alter table storage.objects enable row level security;
+
+create policy \"storage_insert_authenticated_<bucket>\" on storage.objects
+  for insert
+  with check ( auth.role() = 'authenticated' AND bucket_id = '<bucket>' );
+
+  create policy \"storage_select_public_<bucket>\" on storage.objects
+  for select
+  using ( bucket_id = '<bucket>' );
+
+  -- Repeat the two create policy statements for each bucket (avatars, events, tribes).
+
+
+
+  -- Recreate handle_new_user as security definer so trigger can insert profile rows
+create or replace function public.handle_new_user() returns trigger
+  language plpgsql
+  security definer
+as $$
+begin
+  -- insert a minimal profile; if already exists, ignore unique violation
+  insert into public.profiles (id, full_name, created_at, updated_at)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    now(),
+    now()
+  );
+  return new;
+exception when unique_violation then
+  -- if profile already exists, do nothing
+  return new;
+exception when others then
+  -- log and continue (do not prevent signup)
+  raise warning 'handle_new_user failed for user %: %', new.id, sqlerrm;
+  return new;
+end;
+$$;
