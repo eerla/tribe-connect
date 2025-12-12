@@ -38,7 +38,7 @@ interface Tribe {
 
 export default function GroupDetail() {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [tribe, setTribe] = useState<Tribe | null>(null);
   const [tribeEvents, setTribeEvents] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -134,7 +134,7 @@ export default function GroupDetail() {
     fetchMembers();
   }, [tribe?.id]);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!isAuthenticated) {
       toast({
         title: "Sign in required",
@@ -142,10 +142,40 @@ export default function GroupDetail() {
       });
       return;
     }
-    toast({
-      title: "Welcome to the tribe!",
-      description: `You've joined ${tribe?.title || 'this tribe'}`,
-    });
+
+    if (!user?.id || !tribe?.id) {
+      toast({
+        title: "Error",
+        description: "Missing user or tribe information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tribe_members')
+        .insert({
+          tribe_id: tribe.id,
+          user_id: user.id,
+          role: 'member',
+        });
+
+      if (error) throw error;
+
+      setIsMember(true);
+      toast({
+        title: "Welcome to the tribe!",
+        description: `You've joined ${tribe.title || 'this tribe'}`,
+      });
+    } catch (error: any) {
+      console.error('Error joining tribe:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join tribe",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
