@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface ImageUploadProps {
-  bucket: 'tcpublic' | 'tcprivate';
+  bucket: 'avatars' | 'events' | 'tribes';
   folder: string;
   currentUrl?: string;
   onUpload: (url: string) => void;
