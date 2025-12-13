@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Calendar, MapPin, Plus } from 'lucide-react';
+import { Search, Calendar, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { EventCard } from '@/components/cards/EventCard';
 import { SkeletonEventCard } from '@/components/common/SkeletonCard';
 import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';
+import { toast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -17,10 +18,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type FilterType = 'all' | 'this-week' | 'this-weekend' | 'near-me' | 'online' | 'free';
+
 export default function Events() {
   const { events, isLoading } = useEvents();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   
   const categoryFromUrl = searchParams.get('category') || 'all';
   const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl);
@@ -30,8 +36,112 @@ export default function Events() {
     new Set(events.map(e => e.category || 'Other').filter(Boolean))
   ).sort();
 
-  const filteredEvents = events.filter((event) => {
-    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  // Helper function to calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
+
+  // Get user location for "Near Me" filter
+  const handleGetLocation = () => {
+    setIsLoadingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support location services",
+        variant: "destructive",
+      });
+      setIsLoadingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setSelectedFilter('near-me');
+        toast({
+          title: "Location found!",
+          description: "Showing events near you",
+        });
+        setIsLoadingLocation(false);
+      },
+      (error) => {
+        toast({
+          title: "Location access denied",
+          description: "Please enable location access to see nearby events",
+          variant: "destructive",
+        });
+        setIsLoadingLocation(false);
+      }
+    );
+  };
+
+  // Filter events based on selected filter
+  const getFilteredEventsByFilter = (eventsToFilter: typeof events): typeof events => {
+    if (selectedFilter === 'all') return eventsToFilter;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    // Get this weekend (Saturday and Sunday)
+    const dayOfWeek = now.getDay();
+    const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+    const thisSaturday = new Date(today);
+    thisSaturday.setDate(today.getDate() + daysUntilSaturday);
+    const thisSunday = new Date(thisSaturday);
+    thisSunday.setDate(thisSaturday.getDate() + 1);
+    const nextMonday = new Date(thisSunday);
+    nextMonday.setDate(thisSunday.getDate() + 1);
+
+    return eventsToFilter.filter((event) => {
+      if (!event.starts_at) return false;
+      const eventDate = new Date(event.starts_at);
+
+      switch (selectedFilter) {
+        case 'this-week':
+          return eventDate >= today && eventDate < nextWeek;
+
+        case 'this-weekend':
+          return eventDate >= thisSaturday && eventDate < nextMonday;
+
+        case 'online':
+          return event.location === 'Online';
+
+        case 'free':
+          return !event.price || event.price === 0;
+
+        case 'near-me':
+          if (!userLocation || !event.latitude || !event.longitude) return false;
+          const distance = calculateDistance(
+            userLocation.lat,
+            userLocation.lng,
+            event.latitude,
+            event.longitude
+          );
+          // Show events within 50km radius
+          return distance <= 50;
+
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredEvents = getFilteredEventsByFilter(events).filter((event) => {
+    const matchesSearch = event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase() || '');
     
     const eventCategory = event.category || 'Other';
@@ -39,6 +149,17 @@ export default function Events() {
     
     return matchesSearch && matchesCategory;
   });
+
+  // Handle filter click
+  const handleFilterClick = (filter: FilterType) => {
+    if (filter === 'near-me') {
+      if (!userLocation) {
+        handleGetLocation();
+        return;
+      }
+    }
+    setSelectedFilter(filter);
+  };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
@@ -111,29 +232,69 @@ export default function Events() {
         <div className="container">
           {/* Quick Filters */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap">
+            <Badge 
+              variant={selectedFilter === 'all' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-secondary/80 whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('all')}
+            >
+              All Events
+            </Badge>
+            <Badge 
+              variant={selectedFilter === 'this-week' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-accent whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('this-week')}
+            >
               <Calendar className="h-3 w-3 mr-1" />
               This Week
             </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent whitespace-nowrap">
+            <Badge 
+              variant={selectedFilter === 'this-weekend' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-accent whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('this-weekend')}
+            >
               <Calendar className="h-3 w-3 mr-1" />
               This Weekend
             </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent whitespace-nowrap">
-              <MapPin className="h-3 w-3 mr-1" />
+            <Badge 
+              variant={selectedFilter === 'near-me' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-accent whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('near-me')}
+            >
+              {isLoadingLocation ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <MapPin className="h-3 w-3 mr-1" />
+              )}
               Near Me
             </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent whitespace-nowrap">
+            <Badge 
+              variant={selectedFilter === 'online' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-accent whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('online')}
+            >
               Online
             </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent whitespace-nowrap">
+            <Badge 
+              variant={selectedFilter === 'free' ? 'secondary' : 'outline'}
+              className="cursor-pointer hover:bg-accent whitespace-nowrap transition-colors"
+              onClick={() => handleFilterClick('free')}
+            >
               Free
             </Badge>
           </div>
 
           {/* Results Count */}
           <p className="text-sm text-muted-foreground mb-6">
-            Showing {filteredEvents.length} events
+            Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
+            {selectedFilter !== 'all' && (
+              <span className="ml-1">
+                {selectedFilter === 'this-week' && 'this week'}
+                {selectedFilter === 'this-weekend' && 'this weekend'}
+                {selectedFilter === 'near-me' && 'near you'}
+                {selectedFilter === 'online' && 'online'}
+                {selectedFilter === 'free' && 'free'}
+              </span>
+            )}
           </p>
 
           {/* Grid */}
@@ -214,13 +375,38 @@ export default function Events() {
           ) : (
             <div className="text-center py-16">
               <Calendar className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No events found {selectedCategory !== 'all' && `in ${selectedCategory}`}</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                No events found
+                {selectedCategory !== 'all' && ` in ${selectedCategory}`}
+                {selectedFilter !== 'all' && (
+                  <span>
+                    {' '}that are{' '}
+                    {selectedFilter === 'this-week' && 'this week'}
+                    {selectedFilter === 'this-weekend' && 'this weekend'}
+                    {selectedFilter === 'near-me' && 'near you'}
+                    {selectedFilter === 'online' && 'online'}
+                    {selectedFilter === 'free' && 'free'}
+                  </span>
+                )}
+              </h3>
               <p className="text-muted-foreground mb-6">
                 Try adjusting your search or filters
               </p>
-              <Button asChild>
-                <Link to="/events/create">Create an Event</Link>
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+                <Button asChild>
+                  <Link to="/events/create">Create an Event</Link>
+                </Button>
+              </div>
             </div>
           )}
         </div>
