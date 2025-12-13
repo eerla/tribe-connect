@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useTribes } from '@/hooks/useTribes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +35,10 @@ export default function CreateEvent() {
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
+  const { tribes } = useTribes();
+  const [selectedTribeId, setSelectedTribeId] = useState<string | null>(null);
+  // const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('inherit');
   const [capacity, setCapacity] = useState('');
   const [price, setPrice] = useState('0');
   const [bannerImage, setBannerImage] = useState<File | null>(null);
@@ -132,10 +144,19 @@ export default function CreateEvent() {
       // Create slug from title
       const slug = title.toLowerCase().replace(/\s+/g, '-');
 
+      // Determine category: explicit selection wins (unless "inherit"), otherwise inherit from tribe if provided
+      let eventCategory: string | null = (selectedCategory && selectedCategory !== 'inherit') ? selectedCategory : null;
+      if (!eventCategory && selectedTribeId) {
+        const t = tribes.find(t => t.id === selectedTribeId);
+        eventCategory = t?.category ?? null;
+      }
+
       const { data, error } = await supabase
         .from('events')
         .insert({
           organizer: user.id,
+          tribe_id: selectedTribeId || null,
+          category: eventCategory,
           title,
           slug,
           description,
@@ -156,7 +177,7 @@ export default function CreateEvent() {
         if (bannerUrl) {
           await supabase
             .from('events')
-            .update({ banner_url: bannerUrl })
+            .update({ banner_url: bannerUrl } as any)
             .eq('id', data.id);
         }
       }
@@ -224,6 +245,50 @@ export default function CreateEvent() {
                   onChange={(e) => setDescription(e.target.value)}
                   required
                 />
+              </div>
+
+              {/* Optional: Choose Group / Category */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tribe">Group (optional)</Label>
+                  <Select
+                    value={selectedTribeId ?? 'none'}
+                    onValueChange={(v) => {
+                      const val = v === 'none' ? null : v;
+                      setSelectedTribeId(val);
+                      // If a tribe is chosen and the category is currently "inherit", inherit it
+                      if (val) {
+                        const t = tribes.find(t => t.id === val);
+                        if (t && selectedCategory === 'inherit') setSelectedCategory(t.category || 'inherit');
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No group</SelectItem>
+                      {tribes.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.title || t.slug || t.id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category (optional)</Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Inherit from group or choose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inherit">Inherit / None</SelectItem>
+                    {Array.from(new Set(tribes.map(t => t.category || 'Other').filter(Boolean))).sort().map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                </div>
               </div>
 
               <div className="space-y-2">

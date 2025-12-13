@@ -31,7 +31,7 @@ export function useEvents() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      const resp = await supabase
+      const resp: any = await supabase
         .from('events')
         .select('*')
         .eq('is_cancelled', false)

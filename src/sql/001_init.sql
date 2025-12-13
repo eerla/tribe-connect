@@ -67,7 +67,8 @@ create table if not exists public.events (
 
 create index if not exists idx_events_starts_at on public.events (starts_at);
 create index if not exists idx_events_location on public.events (location);
-
+CREATE INDEX IF NOT EXISTS idx_tribes_category ON public.tribes (category);
+CREATE INDEX IF NOT EXISTS idx_events_category ON public.events (category);
 -- Event attendees / RSVPs
 create table if not exists public.event_attendees (
   id uuid primary key default gen_random_uuid(),
