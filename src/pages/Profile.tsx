@@ -6,6 +6,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
 import { useUserTribes } from '@/hooks/useTribes';
@@ -32,8 +33,6 @@ export default function Profile() {
   
   const isOwnProfile = id === 'me' || id === currentUser?.id;
   
-  // For own profile, use the authenticated user's profile
-  // For other profiles, we'd fetch from the database (simplified for now)
   const displayName = isOwnProfile ? (profile?.full_name || 'User') : 'User';
   const displayAvatar = isOwnProfile ? profile?.avatar_url : null;
   const displayBio = isOwnProfile ? profile?.bio : null;
@@ -150,28 +149,37 @@ export default function Profile() {
           </div>
         </motion.div>
 
-        {/* Tribes Section */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <Users className="h-6 w-6" />
-              My Tribes
-            </h2>
-            {isOwnProfile && totalTribes === 0 && (
-              <Button asChild size="sm">
-                <Link to="/groups/create">Create Tribe</Link>
-              </Button>
-            )}
-          </div>
+        {/* Tabs Section */}
+        <Tabs defaultValue="tribes" className="space-y-6">
+          <TabsList className="bg-muted/50 p-1 w-full sm:w-auto">
+            <TabsTrigger value="tribes" className="gap-2 flex-1 sm:flex-none">
+              <Users className="h-4 w-4" />
+              Tribes
+            </TabsTrigger>
+            <TabsTrigger value="events" className="gap-2 flex-1 sm:flex-none">
+              <Calendar className="h-4 w-4" />
+              Events
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Created Tribes Subsection */}
-          <div className="mb-10">
+          {/* Tribes Tab */}
+          <TabsContent value="tribes" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              {isOwnProfile && totalTribes === 0 && (
+                <Button asChild size="sm">
+                  <Link to="/groups/create">Create Tribe</Link>
+                </Button>
+              )}
+            </div>
+
+            {/* Created Tribes Subsection */}
             <Collapsible
               open={openSections.createdTribes}
               onOpenChange={() => toggleSection('createdTribes')}
+              className="border border-border rounded-lg"
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors group">
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     Created by Me ({createdTribes.length})
                   </h3>
@@ -183,14 +191,14 @@ export default function Profile() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                    className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {createdTribes.map((tribe, index) => (
                       <TribeCard key={tribe.id} tribe={tribe} index={index} />
                     ))}
                   </motion.div>
                 ) : (
-                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                  <div className="text-center py-8 bg-muted/20 px-4 border-t border-border">
                     <p className="text-muted-foreground">
                       {isOwnProfile ? "You haven't created any tribes yet" : `${displayName} hasn't created any tribes yet`}
                     </p>
@@ -198,16 +206,15 @@ export default function Profile() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
 
-          {/* Joined Tribes Subsection */}
-          <div>
+            {/* Joined Tribes Subsection */}
             <Collapsible
               open={openSections.joinedTribes}
               onOpenChange={() => toggleSection('joinedTribes')}
+              className="border border-border rounded-lg"
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors group">
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     I've Joined ({joinedTribes.length})
                   </h3>
@@ -219,19 +226,19 @@ export default function Profile() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                    className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {joinedTribes.map((tribe, index) => (
                       <TribeCard key={tribe.id} tribe={tribe} index={index} />
                     ))}
                   </motion.div>
                 ) : (
-                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
-                    <p className="text-muted-foreground">
+                  <div className="text-center py-8 bg-muted/20 px-4 border-t border-border">
+                    <p className="text-muted-foreground mb-4">
                       {isOwnProfile ? "You haven't joined any tribes yet" : `${displayName} hasn't joined any tribes yet`}
                     </p>
                     {isOwnProfile && (
-                      <Button asChild size="sm" variant="outline" className="mt-4">
+                      <Button asChild size="sm" variant="outline">
                         <Link to="/groups">Explore Tribes</Link>
                       </Button>
                     )}
@@ -239,31 +246,26 @@ export default function Profile() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* Events Section */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
-              <Calendar className="h-6 w-6" />
-              My Events
-            </h2>
-            {isOwnProfile && totalEvents === 0 && (
-              <Button asChild size="sm">
-                <Link to="/events/create">Create Event</Link>
-              </Button>
-            )}
-          </div>
+          {/* Events Tab */}
+          <TabsContent value="events" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              {isOwnProfile && totalEvents === 0 && (
+                <Button asChild size="sm">
+                  <Link to="/events/create">Create Event</Link>
+                </Button>
+              )}
+            </div>
 
-          {/* Organized Events Subsection */}
-          <div className="mb-10">
+            {/* Organized Events Subsection */}
             <Collapsible
               open={openSections.organizedEvents}
               onOpenChange={() => toggleSection('organizedEvents')}
+              className="border border-border rounded-lg"
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors group">
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     Organized by Me ({organizedEvents.length})
                   </h3>
@@ -275,14 +277,14 @@ export default function Profile() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                    className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {organizedEvents.map((event, index) => (
                       <EventCard key={event.id} event={event} index={index} />
                     ))}
                   </motion.div>
                 ) : (
-                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
+                  <div className="text-center py-8 bg-muted/20 px-4 border-t border-border">
                     <p className="text-muted-foreground">
                       {isOwnProfile ? "You haven't organized any events yet" : `${displayName} hasn't organized any events yet`}
                     </p>
@@ -290,16 +292,15 @@ export default function Profile() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
 
-          {/* Attending Events Subsection */}
-          <div>
+            {/* Attending Events Subsection */}
             <Collapsible
               open={openSections.attendingEvents}
               onOpenChange={() => toggleSection('attendingEvents')}
+              className="border border-border rounded-lg"
             >
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full p-4 rounded-lg hover:bg-muted/50 transition-colors group">
+                <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors group">
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     I'm Attending ({attendingEvents.length})
                   </h3>
@@ -311,19 +312,19 @@ export default function Profile() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4"
+                    className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {attendingEvents.map((event, index) => (
                       <EventCard key={event.id} event={event} index={index} />
                     ))}
                   </motion.div>
                 ) : (
-                  <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border mx-4">
-                    <p className="text-muted-foreground">
+                  <div className="text-center py-8 bg-muted/20 px-4 border-t border-border">
+                    <p className="text-muted-foreground mb-4">
                       {isOwnProfile ? "You haven't attended any events yet" : `${displayName} hasn't attended any events yet`}
                     </p>
                     {isOwnProfile && (
-                      <Button asChild size="sm" variant="outline" className="mt-4">
+                      <Button asChild size="sm" variant="outline">
                         <Link to="/events">Explore Events</Link>
                       </Button>
                     )}
@@ -331,8 +332,8 @@ export default function Profile() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
