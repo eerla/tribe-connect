@@ -23,6 +23,7 @@ create table if not exists public.tribes (
   description text,
   cover_url text,
   city text,
+  category text,
   is_private boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -52,6 +53,7 @@ create table if not exists public.events (
   description text,
   banner_url text,
   location text,
+  category text,
   latitude numeric,
   longitude numeric,
   starts_at timestamptz,

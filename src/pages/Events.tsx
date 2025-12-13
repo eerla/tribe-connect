@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar, MapPin, SlidersHorizontal, Plus } from 'lucide-react';
+import { Search, Calendar, MapPin, Plus } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { EventCard } from '@/components/cards/EventCard';
 import { SkeletonEventCard } from '@/components/common/SkeletonCard';
 import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';
-import { categories } from '@/data/categories';
 import {
   Select,
   SelectContent,
@@ -20,14 +19,36 @@ import {
 
 export default function Events() {
   const { events, isLoading } = useEvents();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  
+  const categoryFromUrl = searchParams.get('category') || 'all';
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl);
+
+  // Get unique categories from events data
+  const uniqueCategories = Array.from(
+    new Set(events.map(e => e.category || 'Other').filter(Boolean))
+  ).sort();
 
   const filteredEvents = events.filter((event) => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase() || '');
-    return matchesSearch;
+    
+    const eventCategory = event.category || 'Other';
+    const matchesCategory = selectedCategory === 'all' || eventCategory === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
   });
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    if (value === 'all') {
+      searchParams.delete('category');
+    } else {
+      searchParams.set('category', value);
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
     <Layout>
@@ -68,22 +89,17 @@ export default function Events() {
               </div>
               
               <div className="flex gap-3">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    {uniqueCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-
-                <Button variant="outline" className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filters</span>
-                </Button>
               </div>
             </div>
           </motion.div>
@@ -198,12 +214,12 @@ export default function Events() {
           ) : (
             <div className="text-center py-16">
               <Calendar className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No events found</h3>
+              <h3 className="text-xl font-semibold mb-2">No events found {selectedCategory !== 'all' && `in ${selectedCategory}`}</h3>
               <p className="text-muted-foreground mb-6">
                 Try adjusting your search or filters
               </p>
               <Button asChild>
-                <Link to="/create-event">Create an Event</Link>
+                <Link to="/events/create">Create an Event</Link>
               </Button>
             </div>
           )}

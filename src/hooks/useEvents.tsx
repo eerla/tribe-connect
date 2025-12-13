@@ -10,6 +10,7 @@ export interface Event {
   description?: string | null;
   banner_url?: string | null;
   location?: string | null;
+  category?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   starts_at?: string;

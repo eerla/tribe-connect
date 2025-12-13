@@ -78,7 +78,7 @@ export default function GroupDetail() {
       try {
         const { data, error } = await supabase
           .from('events')
-          .select('id, title, description, banner_url, starts_at, ends_at, location, organizer')
+          .select('*')
           .eq('tribe_id', tribe.id)
           .eq('is_cancelled', false)
           .order('starts_at', { ascending: true });

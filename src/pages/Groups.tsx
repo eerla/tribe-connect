@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, SlidersHorizontal, Plus } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useTribes } from '@/hooks/useTribes';
-import { categories } from '@/data/categories';
 import {
   Select,
   SelectContent,
@@ -19,14 +18,36 @@ import {
 
 export default function Groups() {
   const { tribes, isLoading } = useTribes();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  const categoryFromUrl = searchParams.get('category') || 'all';
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl);
+
+  // Get unique categories from tribes data
+  const uniqueCategories = Array.from(
+    new Set(tribes.map(t => t.category || 'Other').filter(Boolean))
+  ).sort();
 
   const filteredTribes = tribes.filter((tribe) => {
     const matchesSearch = tribe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tribe.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    
+    const tribeCategory = tribe.category || 'Other';
+    const matchesCategory = selectedCategory === 'all' || tribeCategory === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
   });
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    if (value === 'all') {
+      searchParams.delete('category');
+    } else {
+      searchParams.set('category', value);
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
     <Layout>
@@ -67,14 +88,14 @@ export default function Groups() {
               </div>
               
               <div className="flex gap-3">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    {uniqueCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -94,9 +115,9 @@ export default function Groups() {
           </div>
         ) : filteredTribes.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">No tribes found</p>
+            <p className="text-muted-foreground mb-4">No tribes found {selectedCategory !== 'all' && `in ${selectedCategory}`}</p>
             <Button asChild>
-              <Link to="/create-group">Create the first one!</Link>
+              <Link to="/groups/create">Create the first one!</Link>
             </Button>
           </div>
         ) : (

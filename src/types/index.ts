@@ -10,34 +10,51 @@ export interface User {
 
 export interface Tribe {
   id: string;
-  name: string;
-  description: string;
-  category: string;
+  owner?: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  category?: string;
   cover_image?: string;
-  location: string;
-  member_count: number;
-  is_private: boolean;
-  created_by: string;
-  created_at: string;
+  cover_url?: string;
+  location?: string;
+  city?: string;
+  member_count?: number;
+  is_private?: boolean;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  slug?: string;
 }
 
 export interface Event {
   id: string;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   tribe_id?: string;
   tribe?: Tribe;
   cover_image?: string;
-  location: string;
+  banner_url?: string;
+  location?: string;
+  category?: string;
   venue_name?: string;
-  starts_at: string;
+  starts_at?: string;
   ends_at?: string;
   max_attendees?: number;
-  attendee_count: number;
-  is_online: boolean;
+  capacity?: number;
+  attendee_count?: number;
+  is_online?: boolean;
   online_link?: string;
-  created_by: string;
-  created_at: string;
+  created_by?: string;
+  organizer?: string;
+  created_at?: string;
+  updated_at?: string;
+  slug?: string;
+  price?: number;
+  is_cancelled?: boolean;
+  latitude?: number;
+  longitude?: number;
+  [key: string]: any;
 }
 
 export interface TribeMember {

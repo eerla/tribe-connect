@@ -9,6 +9,7 @@ export interface Tribe {
   description: string | null;
   cover_url: string | null;
   city: string | null;
+  category: string | null;
   is_private: boolean;
   created_at: string;
   updated_at: string;
@@ -20,7 +21,6 @@ export function useTribes() {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchTribes = async () => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('tribes')
