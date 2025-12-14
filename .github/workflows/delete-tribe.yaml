@@ -1,9 +1,11 @@
 name: Delete Tribe Storage
 
 on:
-  push:
-    branches:
-      - '**'
+  # push:
+  #   branches:
+  #     - dev-guru-1
+  #   paths:
+  #     - 'src/delete-tribe/**'
   workflow_dispatch:
     inputs:
       limit:
@@ -25,9 +27,18 @@ jobs:
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
     steps:
       - uses: actions/checkout@v4
+      - name: Print GitHub run context
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "GITHUB_HEAD_REF=$GITHUB_HEAD_REF"
+          echo "GITHUB_BASE_REF=$GITHUB_BASE_REF"
+          echo "Actor: $GITHUB_ACTOR"
+          echo "Listing SUPABASE-related env keys (no values):"
+          env | grep SUPABASE | awk -F= '{print $1}' || true
       - name: Verify required envs are present
         run: |
-          echo "Checking required environment variables..."
+          echo "Checking required environment variables...."
           if [ -z "$SUPABASE_URL" ]; then echo "MISSING: SUPABASE_URL"; exit 2; else echo "SUPABASE_URL present"; fi
           if [ -z "$SUPABASE_SERVICE_KEY" ]; then echo "MISSING: SUPABASE_SERVICE_KEY"; exit 2; else echo "SUPABASE_SERVICE_KEY present"; fi
       - name: Setup Node
