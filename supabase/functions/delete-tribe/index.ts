@@ -2,7 +2,7 @@
 // Minimal Edge Function using fetch (no supabase-js) to avoid large bundles.
 // POST { tribeId, dryRun?: boolean }
 // Auth: Authorization: Bearer <user_access_token>
-// Requires env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Requires env: SUPABASE_URL, SUPABASE_SERVICE_KEY
 
 const getEnv = () => {
   // support Deno runtime env
@@ -14,7 +14,7 @@ const getEnv = () => {
 
 const env = getEnv();
 const SUPABASE_URL = env.SUPABASE_URL;
-const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_KEY;
+const SERVICE_KEY = env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_KEY;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

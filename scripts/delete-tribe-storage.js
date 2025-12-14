@@ -3,7 +3,7 @@
  One-off script to delete Supabase Storage objects related to a tribe.
 
  Usage:
-   SUPABASE_URL="https://..." SUPABASE_SERVICE_ROLE_KEY="<service-key>" node scripts/delete-tribe-storage.js <tribeId>
+   SUPABASE_URL="https://..." SUPABASE_SERVICE_KEY="<service-key>" node scripts/delete-tribe-storage.js <tribeId>
 
  Behavior:
  - Collects cover_url (tribes) and banner_url (events) for the tribe.
@@ -82,16 +82,16 @@ function chunkArray(arr, size) {
 
 async function main() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
   const JOB_FETCH_LIMIT = Number(process.env.DELETE_JOB_FETCH_LIMIT) || 100; // max pending jobs to fetch per run
   const dryRun = process.argv.includes('--dry-run') || process.env.DRY_RUN === '1';
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables');
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('Please set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables');
     process.exit(1);
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 
   try {
     console.log(`Starting deletion job worker (dryRun=${dryRun})`);
