@@ -13,6 +13,16 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -58,6 +68,34 @@ export default function GroupDetail() {
       navigate(maybeFrom);
     } else {
       navigate(-1);
+    }
+  };
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteTribe = async () => {
+    if (!tribe?.id) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('tribes')
+        .delete()
+        .eq('id', tribe.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Tribe deleted', description: 'The tribe was deleted successfully' });
+      // refresh user's tribes and navigate away
+      if (typeof refetchUserTribes === 'function') {
+        try { await refetchUserTribes(); } catch {}
+      }
+      navigate('/groups');
+    } catch (err: any) {
+      console.error('Error deleting tribe:', err);
+      toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -372,6 +410,18 @@ export default function GroupDetail() {
                 Share
               </Button>
               {user?.id === tribe.owner && (
+                <>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="ml-2"
+                  >
+                    Delete Tribe
+                  </Button>
+                </>
+              )}
+              {user?.id === tribe.owner && (
                 <Button asChild size="lg" className="ml-2">
                   <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
                 </Button>
@@ -379,6 +429,28 @@ export default function GroupDetail() {
             </div>
           </div>
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Tribe</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{tribe?.title}"? This will remove the tribe and its membership list. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Keep Tribe</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTribe}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Yes, Delete Tribe'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
 
         {/* Tabs */}

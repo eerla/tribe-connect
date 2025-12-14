@@ -218,6 +218,13 @@ export default function Profile() {
                     <p className="text-muted-foreground">
                       {isOwnProfile ? "You haven't created any tribes yet" : `${displayName} hasn't created any tribes yet`}
                     </p>
+                    {isOwnProfile && (
+                      <div className="mt-4">
+                        <Button asChild size="sm">
+                          <Link to="/groups/create">Create Tribe</Link>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </CollapsibleContent>
