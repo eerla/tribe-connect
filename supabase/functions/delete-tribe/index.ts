@@ -14,7 +14,8 @@ const getEnv = () => {
 
 const env = getEnv();
 const SUPABASE_URL = env.SUPABASE_URL;
-const SERVICE_KEY = env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_KEY;
+// Prefer `SUPABASE_SERVICE_KEY`; fall back to legacy `SUPABASE_SERVICE_ROLE_KEY`.
+const SERVICE_KEY = env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

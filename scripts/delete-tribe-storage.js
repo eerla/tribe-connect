@@ -82,7 +82,8 @@ function chunkArray(arr, size) {
 
 async function main() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  // Prefer canonical `SUPABASE_SERVICE_KEY`, fall back to legacy `SUPABASE_SERVICE_ROLE_KEY`.
+  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   const JOB_FETCH_LIMIT = Number(process.env.DELETE_JOB_FETCH_LIMIT) || 100; // max pending jobs to fetch per run
   const dryRun = process.argv.includes('--dry-run') || process.env.DRY_RUN === '1';
 
