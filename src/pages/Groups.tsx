@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Plus } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -19,6 +19,7 @@ import {
 export default function Groups() {
   const { tribes, isLoading } = useTribes();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   const categoryFromUrl = searchParams.get('category') || 'all';
@@ -123,7 +124,7 @@ export default function Groups() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTribes.map((tribe) => (
-              <TribeCard key={tribe.id} tribe={tribe} />
+              <TribeCard key={tribe.id} tribe={tribe} linkState={{ from: location.pathname + location.search }} />
             ))}
           </div>
         )}

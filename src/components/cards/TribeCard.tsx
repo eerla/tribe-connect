@@ -19,16 +19,17 @@ interface Tribe {
 interface TribeCardProps {
   tribe: Tribe;
   index?: number;
+  linkState?: any;
 }
 
-export function TribeCard({ tribe, index = 0 }: TribeCardProps) {
+export function TribeCard({ tribe, index = 0, linkState }: TribeCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <Link to={`/groups/${tribe.id}`}>
+      <Link to={`/groups/${tribe.id}`} state={linkState}>
         <motion.div
           whileHover={{ y: -4 }}
           className="group relative overflow-hidden rounded-2xl bg-card border border-border shadow-card transition-all duration-300 hover:shadow-xl"

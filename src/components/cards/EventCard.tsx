@@ -10,9 +10,10 @@ interface EventCardProps {
   index?: number;
   isSaved?: boolean;
   onToggleSave?: (eventId: string) => Promise<void> | void;
+  linkState?: any;
 }
 
-export function EventCard({ event, index = 0, isSaved = false, onToggleSave }: EventCardProps) {
+export function EventCard({ event, index = 0, isSaved = false, onToggleSave, linkState }: EventCardProps) {
   const startDate = new Date(event.starts_at);
   const isFull = event.max_attendees ? event.attendee_count >= event.max_attendees : false;
 
@@ -22,7 +23,7 @@ export function EventCard({ event, index = 0, isSaved = false, onToggleSave }: E
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <Link to={`/events/${event.id}`}>
+      <Link to={`/events/${event.id}`} state={linkState}>
         <motion.div
           whileHover={{ y: -4 }}
           className="group relative overflow-hidden rounded-2xl bg-card border border-border shadow-card transition-all duration-300 hover:shadow-xl"

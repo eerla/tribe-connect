@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Users, Settings, Edit, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -43,6 +44,7 @@ export default function Profile() {
   const { createdTribes, joinedTribes } = useUserTribes(currentUser?.id);
   const { organizedEvents, attendingEvents } = useUserEvents(currentUser?.id);
   const { savedEvents, fetchSavedEvents, toggleSave } = useSavedEvents();
+  const location = useLocation();
 
   const totalTribes = createdTribes.length + joinedTribes.length;
   const totalEvents = organizedEvents.length + attendingEvents.length;
@@ -208,7 +210,7 @@ export default function Profile() {
                     className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {createdTribes.map((tribe, index) => (
-                      <TribeCard key={tribe.id} tribe={tribe} index={index} />
+                      <TribeCard key={tribe.id} tribe={tribe} index={index} linkState={{ from: location.pathname }} />
                     ))}
                   </motion.div>
                 ) : (
@@ -243,7 +245,7 @@ export default function Profile() {
                     className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {joinedTribes.map((tribe, index) => (
-                      <TribeCard key={tribe.id} tribe={tribe} index={index} />
+                      <TribeCard key={tribe.id} tribe={tribe} index={index} linkState={{ from: location.pathname }} />
                     ))}
                   </motion.div>
                 ) : (
@@ -294,7 +296,7 @@ export default function Profile() {
                     className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {organizedEvents.map((event, index) => (
-                      <EventCard key={event.id} event={event} index={index} />
+                      <EventCard key={event.id} event={event} index={index} linkState={{ from: location.pathname }} />
                     ))}
                   </motion.div>
                 ) : (
@@ -329,7 +331,7 @@ export default function Profile() {
                     className="grid md:grid-cols-2 gap-6 p-4 border-t border-border"
                   >
                     {attendingEvents.map((event, index) => (
-                      <EventCard key={event.id} event={event} index={index} />
+                      <EventCard key={event.id} event={event} index={index} linkState={{ from: location.pathname }} />
                     ))}
                   </motion.div>
                 ) : (
@@ -375,6 +377,7 @@ export default function Profile() {
                         await toggleSave(id);
                         await fetchSavedEvents();
                       }}
+                      linkState={{ from: location.pathname }}
                     />
                   ))}
                 </motion.div>

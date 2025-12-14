@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Calendar, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -23,6 +23,7 @@ type FilterType = 'all' | 'this-week' | 'this-weekend' | 'near-me' | 'online' | 
 export default function Events() {
   const { events, isLoading } = useEvents();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -307,7 +308,7 @@ export default function Events() {
           ) : filteredEvents.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((event, index) => (
-                <Link key={event.id} to={`/events/${event.id}`}>
+                <Link key={event.id} to={`/events/${event.id}`} state={{ from: location.pathname + location.search }}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

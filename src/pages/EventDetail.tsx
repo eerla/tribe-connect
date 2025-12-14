@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -68,6 +68,17 @@ export default function EventDetail() {
   const { share } = useShare();
   const { checkSaved, toggleSave, savingIds } = useSavedEvents();
   const [isSaved, setIsSaved] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goBack = () => {
+    const maybeFrom = (location.state as any)?.from;
+    if (typeof maybeFrom === 'string') {
+      navigate(maybeFrom);
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -330,11 +341,9 @@ export default function EventDetail() {
         
         {/* Back Button */}
         <div className="absolute top-4 left-4">
-          <Button variant="secondary" size="sm" asChild>
-            <Link to="/events">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
+          <Button variant="secondary" size="sm" onClick={goBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
         </div>
 
