@@ -1,7 +1,10 @@
 // Supabase Edge Function: geocode
 // Geocodes a location string using OpenStreetMap Nominatim API
 // Returns latitude and longitude coordinates
-
+// The TypeScript linter error about Deno types is expected. 
+// Supabase Edge Functions run on Deno, not Node.js, 
+// so the Deno standard library types aren't available in your local TypeScript environment. 
+// This won't affect the function when deployed to Supabase.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
