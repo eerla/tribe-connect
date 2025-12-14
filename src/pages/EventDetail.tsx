@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -9,16 +9,30 @@ import {
   Share2, 
   Heart,
   ArrowLeft,
-  Loader2
+  Loader2,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEvents } from '@/hooks/useEvents';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import useShare from '@/hooks/useShare';
 import { format } from 'date-fns';
+import useSavedEvents from '@/hooks/useSavedEvents';
 
 interface Event {
   id: string;
@@ -48,6 +62,23 @@ export default function EventDetail() {
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRSVPed, setIsRSVPed] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const { share } = useShare();
+  const { checkSaved, toggleSave, savingIds } = useSavedEvents();
+  const [isSaved, setIsSaved] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goBack = () => {
+    const maybeFrom = (location.state as any)?.from;
+    if (typeof maybeFrom === 'string') {
+      navigate(maybeFrom);
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -62,6 +93,10 @@ export default function EventDetail() {
 
         if (error) throw error;
         setEvent(data);
+        try {
+          const saved = await checkSaved(data.id);
+          setIsSaved(saved);
+        } catch {}
       } catch (error) {
         console.error('Error fetching event:', error);
       } finally {
@@ -71,6 +106,12 @@ export default function EventDetail() {
 
     fetchEvent();
   }, [id]);
+
+  const handleSaveToggle = async () => {
+    if (!event || !event.id) return;
+    const result = await toggleSave(event.id);
+    setIsSaved(result);
+  };
 
   // Check if current user is attending
   useEffect(() => {
@@ -134,6 +175,15 @@ export default function EventDetail() {
   const startDate = new Date(event.starts_at);
   const endDate = event.ends_at ? new Date(event.ends_at) : null;
   const isFull = event.capacity ? event.capacity <= 0 : false;
+  
+  // Check if current user is the organizer
+  const isOrganizer = user?.id === event.organizer;
+  
+  // Check if event has started
+  const isEventStarted = startDate < new Date();
+  
+  // Check if event can be cancelled (organizer, not started, not already cancelled)
+  const canCancel = isOrganizer && !isEventStarted && !event.is_cancelled;
 
   const handleRSVP = async () => {
     if (!isAuthenticated) {
@@ -214,6 +264,64 @@ export default function EventDetail() {
     }
   };
 
+  const handleCancelEvent = async () => {
+    if (!event?.id) return;
+    
+    setIsCancelling(true);
+    try {
+      // Update event to cancelled
+      const { error } = await supabase
+        .from('events')
+        .update({ is_cancelled: true })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setEvent({ ...event, is_cancelled: true });
+      setShowCancelDialog(false);
+      
+      // TODO: Notifications are not yet enabled - uncomment when notification system is ready
+      // Fetch all attendees to notify them
+      // const { data: attendees, error: attendeesError } = await supabase
+      //   .from('event_attendees')
+      //   .select('user_id')
+      //   .eq('event_id', event.id);
+      // 
+      // if (!attendeesError && attendees) {
+      //   // Send notifications to all attendees
+      //   for (const attendee of attendees) {
+      //     await supabase
+      //       .from('notifications')
+      //       .insert({
+      //         user_id: attendee.user_id,
+      //         type: 'event_cancelled',
+      //         title: 'Event Cancelled',
+      //         message: `The event "${event.title}" has been cancelled.`,
+      //         related_id: event.id,
+      //         related_type: 'event',
+      //       });
+      //   }
+      // }
+      
+      toast({
+        title: "Event Cancelled",
+        description: "The event has been cancelled successfully",
+      });
+    } catch (error: any) {
+      console.error('Error cancelling event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel event",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  
+
   return (
     <Layout>
       {/* Hero Image */}
@@ -233,22 +341,26 @@ export default function EventDetail() {
         
         {/* Back Button */}
         <div className="absolute top-4 left-4">
-          <Button variant="secondary" size="sm" asChild>
-            <Link to="/events">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
+          <Button variant="secondary" size="sm" onClick={goBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
         </div>
 
         {/* Badges */}
-        <div className="absolute top-4 right-4 flex gap-2">
-          {event.location === 'Online' && (
+        <div className="absolute top-4 right-4 flex gap-2 flex-wrap justify-end">
+          {event.is_cancelled && (
+            <Badge variant="destructive" className="gap-1">
+              <X className="h-3 w-3" />
+              Cancelled
+            </Badge>
+          )}
+          {event.location === 'Online' && !event.is_cancelled && (
             <Badge className="bg-secondary text-secondary-foreground">
               Online
             </Badge>
           )}
-          {isFull && (
+          {isFull && !event.is_cancelled && (
             <Badge variant="destructive">Full</Badge>
           )}
         </div>
@@ -314,22 +426,55 @@ export default function EventDetail() {
               className="bg-card rounded-2xl border border-border p-6 shadow-card sticky top-24"
             >
               <div className="space-y-4">
-                <Button
-                  variant={isRSVPed ? 'destructive' : 'hero'}
-                  size="lg"
-                  className="w-full"
-                  onClick={isRSVPed ? handleUnRSVP : handleRSVP}
-                  disabled={isFull}
-                >
-                  {isFull ? 'Event Full' : (isRSVPed ? 'Attending — Cancel' : 'RSVP Now')}
-                </Button>
+                {/* Show cancelled message if event is cancelled */}
+                {event.is_cancelled ? (
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-center">
+                    <AlertCircle className="h-5 w-5 mx-auto mb-2 text-destructive" />
+                    <p className="text-sm font-medium text-destructive mb-1">This event has been cancelled</p>
+                    <p className="text-xs text-muted-foreground">
+                      RSVP is no longer available for this event
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    variant={isRSVPed ? 'destructive' : 'hero'}
+                    size="lg"
+                    className="w-full"
+                    onClick={isRSVPed ? handleUnRSVP : handleRSVP}
+                    disabled={isFull}
+                  >
+                    {isFull ? 'Event Full' : (isRSVPed ? 'Attending — Cancel' : 'RSVP Now')}
+                  </Button>
+                )}
+
+                {/* Cancel Event Button - Only visible to organizer before event starts */}
+                {canCancel && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => setShowCancelDialog(true)}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel Event
+                  </Button>
+                )}
 
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1">
+                  <Button
+                    variant={isSaved ? 'destructive' : 'outline'}
+                    className="flex-1"
+                    onClick={handleSaveToggle}
+                    disabled={Boolean(savingIds[event?.id || ''])}
+                  >
                     <Heart className="h-4 w-4 mr-2" />
-                    Save
+                    {isSaved ? 'Saved' : 'Save'}
                   </Button>
-                  <Button variant="outline" className="flex-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => share({ title: event.title, text: event.description, url: window.location.href })}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
@@ -363,6 +508,29 @@ export default function EventDetail() {
 
           </div>
       </div>
+
+      {/* Cancel Event Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel "{event.title}"? This action cannot be undone. 
+              All attendees will be notified that the event has been cancelled.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelling}>Keep Event</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelEvent}
+              disabled={isCancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCancelling ? 'Cancelling...' : 'Yes, Cancel Event'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

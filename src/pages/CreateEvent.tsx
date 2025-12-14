@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useTribes } from '@/hooks/useTribes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +35,12 @@ export default function CreateEvent() {
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
+  const { tribes } = useTribes();
+  // Only tribes owned by current user may host events
+  const tribesOwned = tribes.filter(t => t.owner === user?.id);
+  const [selectedTribeId, setSelectedTribeId] = useState<string | null>(null);
+  // const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('inherit');
   const [capacity, setCapacity] = useState('');
   const [price, setPrice] = useState('0');
   const [bannerImage, setBannerImage] = useState<File | null>(null);
@@ -50,6 +64,44 @@ export default function CreateEvent() {
         setBannerPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  /**
+   * Geocodes a location string using the Supabase Edge Function
+   * Returns latitude and longitude coordinates, or null if geocoding fails
+   * 
+   * @param locationString - The location string to geocode (e.g., "San Francisco, CA")
+   * @returns Promise with { lat: number | null, lng: number | null }
+   */
+  const geocodeLocation = async (locationString: string): Promise<{ lat: number | null; lng: number | null }> => {
+    try {
+      // Call the geocode edge function
+      const { data, error } = await supabase.functions.invoke('geocode', {
+        body: { location: locationString }
+      });
+
+      if (error) {
+        console.warn('Geocoding error:', error);
+        // Return null coordinates on error - event will still be created
+        return { lat: null, lng: null };
+      }
+
+      // Validate response structure
+      if (data && typeof data === 'object' && 'lat' in data && 'lng' in data) {
+        return {
+          lat: data.lat,
+          lng: data.lng
+        };
+      }
+
+      // Invalid response format
+      console.warn('Invalid geocoding response format:', data);
+      return { lat: null, lng: null };
+    } catch (error) {
+      // Network errors, timeouts, etc. - fail gracefully
+      console.warn('Geocoding failed (network/other error):', error);
+      return { lat: null, lng: null };
     }
   };
 
@@ -132,14 +184,67 @@ export default function CreateEvent() {
       // Create slug from title
       const slug = title.toLowerCase().replace(/\s+/g, '-');
 
+      // Determine category: explicit selection wins (unless "inherit"), otherwise inherit from tribe if provided
+      let eventCategory: string | null = (selectedCategory && selectedCategory !== 'inherit') ? selectedCategory : null;
+      if (!eventCategory && selectedTribeId) {
+        const t = tribes.find(t => t.id === selectedTribeId);
+        eventCategory = t?.category ?? null;
+      }
+
+      // Prepare location string for geocoding
+      const locationString = isOnline ? 'Online' : location;
+
+      // ============================================
+      // GEOCODING: Get latitude and longitude
+      // ============================================
+      // Call the geocode edge function to convert location string to coordinates
+      // This happens BEFORE inserting the event so we can include lat/lng in the initial insert
+      // If geocoding fails, we still create the event with null coordinates (backward compatible)
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      if (locationString && locationString.trim() !== '') {
+        const coordinates = await geocodeLocation(locationString);
+        latitude = coordinates.lat;
+        longitude = coordinates.lng;
+
+        // Optional: Log geocoding result (can be removed in production)
+        if (latitude && longitude) {
+          console.log(`Geocoded "${locationString}" to: ${latitude}, ${longitude}`);
+        } else {
+          console.log(`Geocoding failed or returned null for: "${locationString}"`);
+        }
+      }
+      // ============================================
+
+      // Insert event with geocoded coordinates (or null if geocoding failed/not applicable)
+      // Validate tribe ownership if a tribe was selected
+      if (selectedTribeId) {
+        const t = tribes.find(t => t.id === selectedTribeId);
+        if (!t) {
+          toast({ title: 'Invalid tribe', description: 'Selected tribe not found', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        if (t.owner !== user.id) {
+          toast({ title: 'Not allowed', description: 'You can only create events for tribes you own', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase
         .from('events')
         .insert({
           organizer: user.id,
+          tribe_id: selectedTribeId || null,
+          category: eventCategory,
           title,
           slug,
           description,
-          location: isOnline ? 'Online' : location,
+          location: locationString,
+          latitude,  // Geocoded latitude (or null)
+          longitude, // Geocoded longitude (or null)
           starts_at: startsAt,
           ends_at: endsAt,
           capacity: capacity ? parseInt(capacity) : null,
@@ -156,7 +261,7 @@ export default function CreateEvent() {
         if (bannerUrl) {
           await supabase
             .from('events')
-            .update({ banner_url: bannerUrl })
+            .update({ banner_url: bannerUrl } as any)
             .eq('id', data.id);
         }
       }
@@ -224,6 +329,50 @@ export default function CreateEvent() {
                   onChange={(e) => setDescription(e.target.value)}
                   required
                 />
+              </div>
+
+              {/* Optional: Choose Group / Category */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tribe">Group (optional)</Label>
+                  <Select
+                    value={selectedTribeId ?? 'none'}
+                    onValueChange={(v) => {
+                      const val = v === 'none' ? null : v;
+                      setSelectedTribeId(val);
+                      // If a tribe is chosen and the category is currently "inherit", inherit it
+                      if (val) {
+                        const t = tribes.find(t => t.id === val);
+                        if (t && selectedCategory === 'inherit') setSelectedCategory(t.category || 'inherit');
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No group</SelectItem>
+                      {tribesOwned.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.title || t.slug || t.id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category (optional)</Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Inherit from group or choose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inherit">Inherit / None</SelectItem>
+                    {Array.from(new Set(tribes.map(t => t.category || 'Other').filter(Boolean))).sort().map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                </div>
               </div>
 
               <div className="space-y-2">

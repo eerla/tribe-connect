@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Users, Video } from 'lucide-react';
+import { Calendar, MapPin, Users, Video, Heart } from 'lucide-react';
 import { Event } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -8,9 +8,12 @@ import { format } from 'date-fns';
 interface EventCardProps {
   event: Event;
   index?: number;
+  isSaved?: boolean;
+  onToggleSave?: (eventId: string) => Promise<void> | void;
+  linkState?: any;
 }
 
-export function EventCard({ event, index = 0 }: EventCardProps) {
+export function EventCard({ event, index = 0, isSaved = false, onToggleSave, linkState }: EventCardProps) {
   const startDate = new Date(event.starts_at);
   const isFull = event.max_attendees ? event.attendee_count >= event.max_attendees : false;
 
@@ -20,7 +23,7 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <Link to={`/events/${event.id}`}>
+      <Link to={`/events/${event.id}`} state={linkState}>
         <motion.div
           whileHover={{ y: -4 }}
           className="group relative overflow-hidden rounded-2xl bg-card border border-border shadow-card transition-all duration-300 hover:shadow-xl"
@@ -56,6 +59,17 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
                 <Badge variant="destructive">Full</Badge>
               )}
             </div>
+
+            {/* Save Button (not part of the link) */}
+            {onToggleSave && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(event.id); }}
+                className="absolute top-4 left-4 z-20 bg-white/90 dark:bg-card/80 rounded-full p-2 hover:scale-105 transition-transform"
+                aria-label={isSaved ? 'Unsave event' : 'Save event'}
+              >
+                <Heart className={`h-4 w-4 ${isSaved ? 'text-destructive' : 'text-muted-foreground'}`} />
+              </button>
+            )}
           </div>
 
           {/* Content */}

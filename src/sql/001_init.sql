@@ -23,6 +23,7 @@ create table if not exists public.tribes (
   description text,
   cover_url text,
   city text,
+  category text,
   is_private boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -52,6 +53,7 @@ create table if not exists public.events (
   description text,
   banner_url text,
   location text,
+  category text,
   latitude numeric,
   longitude numeric,
   starts_at timestamptz,
@@ -65,7 +67,8 @@ create table if not exists public.events (
 
 create index if not exists idx_events_starts_at on public.events (starts_at);
 create index if not exists idx_events_location on public.events (location);
-
+CREATE INDEX IF NOT EXISTS idx_tribes_category ON public.tribes (category);
+CREATE INDEX IF NOT EXISTS idx_events_category ON public.events (category);
 -- Event attendees / RSVPs
 create table if not exists public.event_attendees (
   id uuid primary key default gen_random_uuid(),
@@ -255,3 +258,21 @@ alter table storage.objects enable row level security;
 
 
 
+-- event saves (bookmarks)
+create table if not exists public.event_saves (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  saved_at timestamptz default now(),
+  unique (event_id, user_id)
+);
+
+-- RLS
+alter table public.event_saves enable row level security;
+
+create policy "event_saves_select" on public.event_saves for select using (auth.role() = 'authenticated');
+create policy "event_saves_insert" on public.event_saves for insert with check (auth.uid() = user_id);
+create policy "event_saves_delete_own" on public.event_saves for delete using (auth.uid() = user_id);
+
+create index if not exists idx_event_saves_event on public.event_saves (event_id);
+create index if not exists idx_event_saves_user on public.event_saves (user_id);

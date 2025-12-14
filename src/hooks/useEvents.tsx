@@ -10,6 +10,7 @@ export interface Event {
   description?: string | null;
   banner_url?: string | null;
   location?: string | null;
+  category?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   starts_at?: string;
@@ -30,7 +31,7 @@ export function useEvents() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      const resp = await supabase
+      const resp: any = await supabase
         .from('events')
         .select('*')
         .eq('is_cancelled', false)

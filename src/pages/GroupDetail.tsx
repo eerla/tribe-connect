@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserTribes } from '@/hooks/useTribes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import useShare from '@/hooks/useShare';
 
 interface Tribe {
   id: string;
@@ -46,6 +47,19 @@ export default function GroupDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+
+  const { share } = useShare();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goBack = () => {
+    const maybeFrom = (location.state as any)?.from;
+    if (typeof maybeFrom === 'string') {
+      navigate(maybeFrom);
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     const fetchTribe = async () => {
@@ -78,7 +92,7 @@ export default function GroupDetail() {
       try {
         const { data, error } = await supabase
           .from('events')
-          .select('id, title, description, banner_url, starts_at, ends_at, location, organizer')
+          .select('*')
           .eq('tribe_id', tribe.id)
           .eq('is_cancelled', false)
           .order('starts_at', { ascending: true });
@@ -284,11 +298,9 @@ export default function GroupDetail() {
         
         {/* Back Button */}
         <div className="absolute top-4 left-4">
-          <Button variant="secondary" size="sm" asChild>
-            <Link to="/groups">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
+          <Button variant="secondary" size="sm" onClick={goBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
         </div>
       </div>
@@ -351,10 +363,19 @@ export default function GroupDetail() {
                 <Button variant="hero" size="lg" onClick={handleJoin}>
                   Join Tribe</Button>
               )}
-              <Button variant="outline" size="lg">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => share({ title: tribe?.title, text: tribe?.description, url: window.location.href })}
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
+              {user?.id === tribe.owner && (
+                <Button asChild size="lg" className="ml-2">
+                  <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
+                </Button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -384,11 +405,11 @@ export default function GroupDetail() {
               animate={{ opacity: 1 }}
             >
               {tribeEvents.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tribeEvents.map((event, index) => (
-                    <EventCard key={event.id} event={event} index={index} />
-                  ))}
-                </div>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {tribeEvents.map((event, index) => (
+                        <EventCard key={event.id} event={event} index={index} />
+                      ))}
+                    </div>
               ) : (
                 <div className="text-center py-16 bg-muted/30 rounded-2xl">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -396,9 +417,11 @@ export default function GroupDetail() {
                   <p className="text-muted-foreground mb-4">
                     Be the first to create an event for this tribe
                   </p>
-                  <Button asChild>
-                    <Link to="/events/create">Create Event</Link>
-                  </Button>
+                  {user?.id === tribe.owner && (
+                    <Button asChild>
+                      <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
+                    </Button>
+                  )}
                 </div>
               )}
             </motion.div>

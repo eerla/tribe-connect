@@ -30,7 +30,7 @@ export default function CreateGroup() {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('Other');
   const [location, setLocation] = useState('');
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -129,6 +129,7 @@ export default function CreateGroup() {
           description,
           city: location,
           is_private: isPrivate,
+          category,
         })
         .select()
         .single();
