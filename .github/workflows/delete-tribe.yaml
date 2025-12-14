@@ -3,9 +3,14 @@ name: Delete Tribe Storage
 on:
   workflow_dispatch:
     inputs:
-      tribe_id:
-        description: 'Tribe ID to delete storage for'
-        required: true
+      limit:
+        description: 'Max number of deletion jobs to fetch (optional)'
+        required: false
+        default: '10'
+      dry_run:
+        description: 'If true, list jobs but do not perform deletes'
+        required: false
+        default: 'false'
   schedule:
     - cron: '0 2 * * *' # optional nightly run (UTC)
 
@@ -20,10 +25,12 @@ jobs:
           node-version: '18'
       - name: Install deps
         run: npm ci
-      - name: Run delete script
+      - name: Run deletion-job worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DELETE_BATCH_SIZE: '20'
+          DELETE_JOB_FETCH_LIMIT: ${{ github.event.inputs.limit || '100' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: |
-          node scripts/delete-tribe-storage.js "${{ github.event.inputs.tribe_id || 'TRIBE_ID_HERE' }}"
+          node scripts/delete-tribe-storage.js
