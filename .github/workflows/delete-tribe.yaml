@@ -28,7 +28,7 @@ jobs:
       - name: Run deletion-job worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           DELETE_BATCH_SIZE: '20'
           DELETE_JOB_FETCH_LIMIT: ${{ github.event.inputs.limit || '100' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
