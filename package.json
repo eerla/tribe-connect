@@ -9,7 +9,11 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "seed": "node scripts/seed-supabase.js"
+    "seed": "node scripts/seed-supabase.js",
+    "supabase": "supabase",
+    "supabase:start": "npx supabase@latest start",
+    "supabase:deploy": "npx supabase@latest functions deploy"
+
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

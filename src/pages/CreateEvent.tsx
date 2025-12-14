@@ -65,6 +65,44 @@ export default function CreateEvent() {
     }
   };
 
+  /**
+   * Geocodes a location string using the Supabase Edge Function
+   * Returns latitude and longitude coordinates, or null if geocoding fails
+   * 
+   * @param locationString - The location string to geocode (e.g., "San Francisco, CA")
+   * @returns Promise with { lat: number | null, lng: number | null }
+   */
+  const geocodeLocation = async (locationString: string): Promise<{ lat: number | null; lng: number | null }> => {
+    try {
+      // Call the geocode edge function
+      const { data, error } = await supabase.functions.invoke('geocode', {
+        body: { location: locationString }
+      });
+
+      if (error) {
+        console.warn('Geocoding error:', error);
+        // Return null coordinates on error - event will still be created
+        return { lat: null, lng: null };
+      }
+
+      // Validate response structure
+      if (data && typeof data === 'object' && 'lat' in data && 'lng' in data) {
+        return {
+          lat: data.lat,
+          lng: data.lng
+        };
+      }
+
+      // Invalid response format
+      console.warn('Invalid geocoding response format:', data);
+      return { lat: null, lng: null };
+    } catch (error) {
+      // Network errors, timeouts, etc. - fail gracefully
+      console.warn('Geocoding failed (network/other error):', error);
+      return { lat: null, lng: null };
+    }
+  };
+
   const uploadBannerImage = async (eventId: string): Promise<string | null> => {
     if (!bannerImage) return null;
 
@@ -151,6 +189,33 @@ export default function CreateEvent() {
         eventCategory = t?.category ?? null;
       }
 
+      // Prepare location string for geocoding
+      const locationString = isOnline ? 'Online' : location;
+
+      // ============================================
+      // GEOCODING: Get latitude and longitude
+      // ============================================
+      // Call the geocode edge function to convert location string to coordinates
+      // This happens BEFORE inserting the event so we can include lat/lng in the initial insert
+      // If geocoding fails, we still create the event with null coordinates (backward compatible)
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      if (locationString && locationString.trim() !== '') {
+        const coordinates = await geocodeLocation(locationString);
+        latitude = coordinates.lat;
+        longitude = coordinates.lng;
+
+        // Optional: Log geocoding result (can be removed in production)
+        if (latitude && longitude) {
+          console.log(`Geocoded "${locationString}" to: ${latitude}, ${longitude}`);
+        } else {
+          console.log(`Geocoding failed or returned null for: "${locationString}"`);
+        }
+      }
+      // ============================================
+
+      // Insert event with geocoded coordinates (or null if geocoding failed/not applicable)
       const { data, error } = await supabase
         .from('events')
         .insert({
@@ -160,7 +225,9 @@ export default function CreateEvent() {
           title,
           slug,
           description,
-          location: isOnline ? 'Online' : location,
+          location: locationString,
+          latitude,  // Geocoded latitude (or null)
+          longitude, // Geocoded longitude (or null)
           starts_at: startsAt,
           ends_at: endsAt,
           capacity: capacity ? parseInt(capacity) : null,
