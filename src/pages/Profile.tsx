@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Users, Settings, Edit, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
+import useSavedEvents from '@/hooks/useSavedEvents';
 import { useUserTribes } from '@/hooks/useTribes';
 import { useUserEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,9 +42,18 @@ export default function Profile() {
   
   const { createdTribes, joinedTribes } = useUserTribes(currentUser?.id);
   const { organizedEvents, attendingEvents } = useUserEvents(currentUser?.id);
+  const { savedEvents, fetchSavedEvents, toggleSave } = useSavedEvents();
 
   const totalTribes = createdTribes.length + joinedTribes.length;
   const totalEvents = organizedEvents.length + attendingEvents.length;
+  const totalSaved = savedEvents.length;
+
+  useEffect(() => {
+    // Fetch saved events when viewing your own profile
+    if (isOwnProfile && currentUser?.id) {
+      fetchSavedEvents(currentUser.id).catch(() => {});
+    }
+  }, [isOwnProfile, currentUser?.id, fetchSavedEvents]);
 
   if (!isOwnProfile && !id) {
     return (
@@ -159,6 +169,10 @@ export default function Profile() {
             <TabsTrigger value="events" className="gap-2 flex-1 sm:flex-none">
               <Calendar className="h-4 w-4" />
               Events
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="gap-2 flex-1 sm:flex-none">
+              <Calendar className="h-4 w-4" />
+              Saved
             </TabsTrigger>
           </TabsList>
 
@@ -332,6 +346,51 @@ export default function Profile() {
                 )}
               </CollapsibleContent>
             </Collapsible>
+          </TabsContent>
+
+          {/* Saved Tab */}
+          <TabsContent value="saved" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              {isOwnProfile && totalSaved === 0 && (
+                <Button asChild size="sm">
+                  <Link to="/events">Explore Events</Link>
+                </Button>
+              )}
+            </div>
+
+            <div className="border border-border rounded-lg">
+              {savedEvents.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid md:grid-cols-2 gap-6 p-4"
+                >
+                  {savedEvents.map((event: any, index: number) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      isSaved={true}
+                      onToggleSave={async (id: string) => {
+                        await toggleSave(id);
+                        await fetchSavedEvents();
+                      }}
+                    />
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="text-center py-8 bg-muted/20 px-4">
+                  <p className="text-muted-foreground mb-4">
+                    {isOwnProfile ? "You haven't saved any events yet" : `${displayName} hasn't saved any events yet`}
+                  </p>
+                  {isOwnProfile && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/events">Explore Events</Link>
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

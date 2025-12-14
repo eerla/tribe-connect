@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserTribes } from '@/hooks/useTribes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import useShare from '@/hooks/useShare';
 
 interface Tribe {
   id: string;
@@ -46,6 +47,8 @@ export default function GroupDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+
+  const { share } = useShare();
 
   useEffect(() => {
     const fetchTribe = async () => {
@@ -351,7 +354,11 @@ export default function GroupDetail() {
                 <Button variant="hero" size="lg" onClick={handleJoin}>
                   Join Tribe</Button>
               )}
-              <Button variant="outline" size="lg">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => share({ title: tribe?.title, text: tribe?.description, url: window.location.href })}
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>

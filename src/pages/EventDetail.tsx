@@ -30,7 +30,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserEvents } from '@/hooks/useEvents';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import useShare from '@/hooks/useShare';
 import { format } from 'date-fns';
+import useSavedEvents from '@/hooks/useSavedEvents';
 
 interface Event {
   id: string;
@@ -63,6 +65,10 @@ export default function EventDetail() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  const { share } = useShare();
+  const { checkSaved, toggleSave, savingIds } = useSavedEvents();
+  const [isSaved, setIsSaved] = useState(false);
+
   useEffect(() => {
     const fetchEvent = async () => {
       if (!id) return;
@@ -76,6 +82,10 @@ export default function EventDetail() {
 
         if (error) throw error;
         setEvent(data);
+        try {
+          const saved = await checkSaved(data.id);
+          setIsSaved(saved);
+        } catch {}
       } catch (error) {
         console.error('Error fetching event:', error);
       } finally {
@@ -85,6 +95,12 @@ export default function EventDetail() {
 
     fetchEvent();
   }, [id]);
+
+  const handleSaveToggle = async () => {
+    if (!event || !event.id) return;
+    const result = await toggleSave(event.id);
+    setIsSaved(result);
+  };
 
   // Check if current user is attending
   useEffect(() => {
@@ -293,6 +309,8 @@ export default function EventDetail() {
     }
   };
 
+  
+
   return (
     <Layout>
       {/* Hero Image */}
@@ -434,11 +452,20 @@ export default function EventDetail() {
                 )}
 
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1">
+                  <Button
+                    variant={isSaved ? 'destructive' : 'outline'}
+                    className="flex-1"
+                    onClick={handleSaveToggle}
+                    disabled={Boolean(savingIds[event?.id || ''])}
+                  >
                     <Heart className="h-4 w-4 mr-2" />
-                    Save
+                    {isSaved ? 'Saved' : 'Save'}
                   </Button>
-                  <Button variant="outline" className="flex-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => share({ title: event.title, text: event.description, url: window.location.href })}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
