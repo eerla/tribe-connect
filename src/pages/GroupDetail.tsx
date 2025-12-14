@@ -109,8 +109,33 @@ export default function GroupDetail() {
         return;
       }
 
-      // Delete tribe row via Supabase (do NOT call Edge Function for storage cleanup).
-      // This deletes the tribe record; storage objects (cover/banner) are skipped for now.
+      // Optionally call the server-side Edge Function to enqueue storage-deletion jobs.
+      // The function should use the service role key to write `deletion_jobs` safely.
+      // const deleteFnUrl = import.meta.env.VITE_DELETE_TRIBE_FUNCTION_URL || import.meta.env.VITE_SUPABASE_FUNCTION_DELETE_TRIBE || '';
+      // if (deleteFnUrl) {
+      //   try {
+      //     const resp = await fetch(deleteFnUrl, {
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //         Authorization: `Bearer ${token}`,
+      //       },
+      //       body: JSON.stringify({ tribeId: tribe.id })
+      //     });
+      //     if (!resp.ok) {
+      //       const text = await resp.text().catch(() => '');
+      //       console.warn('delete-tribe function returned non-ok', resp.status, text);
+      //       toast({ title: 'Warning', description: 'Storage cleanup could not be enqueued (function error).', variant: 'warning' });
+      //     } else {
+      //       toast({ title: 'Storage cleanup queued', description: 'Storage deletion jobs were enqueued for this tribe.', variant: 'default' });
+      //     }
+      //   } catch (fnErr) {
+      //     console.warn('Failed to call delete-tribe function', fnErr);
+      //     toast({ title: 'Warning', description: 'Failed to contact storage cleanup function.', variant: 'warning' });
+      //   }
+      // }
+
+      // Delete tribe row via Supabase.
       const { error: delError } = await supabase
         .from('tribes')
         .delete()
