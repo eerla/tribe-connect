@@ -55,4 +55,6 @@ jobs:
           DELETE_JOB_FETCH_LIMIT: ${{ github.event.inputs.limit || '100' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: |
+          echo "SUPABASE_URL length: ${#SUPABASE_URL}"
+          echo "SUPABASE_SERVICE_KEY length: ${#SUPABASE_SERVICE_KEY}"
           node scripts/delete-tribe-storage.js
