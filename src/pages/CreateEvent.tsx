@@ -36,6 +36,8 @@ export default function CreateEvent() {
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
   const { tribes } = useTribes();
+  // Only tribes owned by current user may host events
+  const tribesOwned = tribes.filter(t => t.owner === user?.id);
   const [selectedTribeId, setSelectedTribeId] = useState<string | null>(null);
   // const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('inherit');
@@ -216,6 +218,21 @@ export default function CreateEvent() {
       // ============================================
 
       // Insert event with geocoded coordinates (or null if geocoding failed/not applicable)
+      // Validate tribe ownership if a tribe was selected
+      if (selectedTribeId) {
+        const t = tribes.find(t => t.id === selectedTribeId);
+        if (!t) {
+          toast({ title: 'Invalid tribe', description: 'Selected tribe not found', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        if (t.owner !== user.id) {
+          toast({ title: 'Not allowed', description: 'You can only create events for tribes you own', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase
         .from('events')
         .insert({
@@ -335,7 +352,7 @@ export default function CreateEvent() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No group</SelectItem>
-                      {tribes.map((t) => (
+                      {tribesOwned.map((t) => (
                         <SelectItem key={t.id} value={t.id}>{t.title || t.slug || t.id}</SelectItem>
                       ))}
                     </SelectContent>

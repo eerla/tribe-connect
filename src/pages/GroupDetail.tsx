@@ -355,6 +355,11 @@ export default function GroupDetail() {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
+              {user?.id === tribe.owner && (
+                <Button asChild size="lg" className="ml-2">
+                  <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
+                </Button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -384,11 +389,11 @@ export default function GroupDetail() {
               animate={{ opacity: 1 }}
             >
               {tribeEvents.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tribeEvents.map((event, index) => (
-                    <EventCard key={event.id} event={event} index={index} />
-                  ))}
-                </div>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {tribeEvents.map((event, index) => (
+                        <EventCard key={event.id} event={event} index={index} />
+                      ))}
+                    </div>
               ) : (
                 <div className="text-center py-16 bg-muted/30 rounded-2xl">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -396,9 +401,11 @@ export default function GroupDetail() {
                   <p className="text-muted-foreground mb-4">
                     Be the first to create an event for this tribe
                   </p>
-                  <Button asChild>
-                    <Link to="/events/create">Create Event</Link>
-                  </Button>
+                  {user?.id === tribe.owner && (
+                    <Button asChild>
+                      <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
+                    </Button>
+                  )}
                 </div>
               )}
             </motion.div>
