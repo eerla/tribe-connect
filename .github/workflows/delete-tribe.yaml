@@ -1,11 +1,11 @@
 name: Delete Tribe Storage
 
 on:
-  # push:
-  #   branches:
-  #     - dev-guru-1
-  #   paths:
-  #     - 'src/delete-tribe/**'
+  push:
+    branches:
+      - dev-guru-1
+    paths:
+      - 'src/delete-tribe/**'
   workflow_dispatch:
     inputs:
       limit:
