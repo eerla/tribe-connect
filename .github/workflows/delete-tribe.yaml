@@ -1,0 +1,29 @@
+name: Delete Tribe Storage
+
+on:
+  workflow_dispatch:
+    inputs:
+      tribe_id:
+        description: 'Tribe ID to delete storage for'
+        required: true
+  schedule:
+    - cron: '0 2 * * *' # optional nightly run (UTC)
+
+jobs:
+  run-delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install deps
+        run: npm ci
+      - name: Run delete script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DELETE_BATCH_SIZE: '20'
+        run: |
+          node scripts/delete-tribe-storage.js "${{ github.event.inputs.tribe_id || 'TRIBE_ID_HERE' }}"

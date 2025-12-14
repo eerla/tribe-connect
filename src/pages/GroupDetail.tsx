@@ -77,22 +77,61 @@ export default function GroupDetail() {
     if (!tribe?.id) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      // 1) Try normal session retrieval
+      const { data } = await supabase.auth.getSession();
+      let token = (data as any)?.session?.access_token || null;
+
+      // 2) Fallback: scan local/session storage for common Supabase session keys
+      if (!token) {
+        const keys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
+        for (const k of keys) {
+          try {
+            const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            token = parsed?.access_token || parsed?.currentSession?.access_token || parsed?.persistedSession?.access_token || parsed?.provider_token || null;
+            if (token) { console.log('token found in storage key', k); break; }
+            // fallback raw token-looking value
+            if (!token && typeof raw === 'string' && raw.length > 50) {
+              token = raw;
+              console.log('token-like raw value in key', k);
+              break;
+            }
+          } catch (e) { /* ignore parse errors */ }
+        }
+      }
+
+      // Debug: show token presence (do not paste token anywhere)
+      console.log('delete-tribe token present?', Boolean(token));
+
+      if (!token) {
+        toast({ title: 'Not signed in', description: 'No valid session token found. Sign in and try again.', variant: 'destructive' });
+        return;
+      }
+
+      // Delete tribe row via Supabase (do NOT call Edge Function for storage cleanup).
+      // This deletes the tribe record; storage objects (cover/banner) are skipped for now.
+      const { error: delError } = await supabase
         .from('tribes')
         .delete()
         .eq('id', tribe.id);
 
-      if (error) throw error;
-
-      toast({ title: 'Tribe deleted', description: 'The tribe was deleted successfully' });
-      // refresh user's tribes and navigate away
+      if (delError) {
+        throw delError;
+      }
+      // TODO: Storage files were not removed.
+      toast({ title: 'Tribe deleted', description: 'The tribe was deleted.', variant: 'default' });
       if (typeof refetchUserTribes === 'function') {
         try { await refetchUserTribes(); } catch {}
       }
       navigate('/groups');
     } catch (err: any) {
-      console.error('Error deleting tribe:', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
+      if (err.name === 'AbortError') {
+        toast({ title: 'Timeout', description: 'Delete operation timed out', variant: 'destructive' });
+      } else {
+        console.error('Error deleting tribe:', err);
+        toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
+      }
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);

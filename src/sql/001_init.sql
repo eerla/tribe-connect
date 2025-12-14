@@ -46,7 +46,7 @@ create index if not exists idx_tribe_members_tribe on public.tribe_members (trib
 -- Events
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
-  tribe_id uuid references public.tribes (id) on delete set null,
+  tribe_id uuid references public.tribes (id) on delete cascade,
   organizer uuid not null references auth.users (id) on delete cascade,
   title text not null,
   slug text unique,
@@ -217,6 +217,30 @@ create trigger on_auth_user_created after insert on auth.users for each row
 create trigger set_timestamp_profiles before update on public.profiles for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_tribes before update on public.tribes for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_events before update on public.events for each row execute procedure public.set_timestamp();
+
+-- Ensure tribe deletion also removes related messages and other non-FK data
+-- Function to cleanup tribe-related rows that are not referenced by FK constraints
+create or replace function public.delete_tribe_related_objects() returns trigger language plpgsql as $$
+begin
+  -- remove messages in the tribe channel
+  delete from public.messages where channel = 'tribe:' || old.id;
+  -- add other cleanup operations here if needed (notifications, files, etc.)
+  return old;
+end;
+$$;
+
+-- Install trigger (safe to run multiple times: drop then create)
+drop trigger if exists trigger_delete_tribe_related on public.tribes;
+create trigger trigger_delete_tribe_related
+  after delete on public.tribes
+  for each row
+  execute procedure public.delete_tribe_related_objects();
+
+-- Migration for existing databases: replace events.tribe_id FK to cascade on delete
+-- Drop existing FK (if present) and recreate with ON DELETE CASCADE
+alter table if exists public.events drop constraint if exists events_tribe_id_fkey;
+alter table if exists public.events
+  add constraint events_tribe_id_fkey foreign key (tribe_id) references public.tribes(id) on delete cascade;
 
 -- Allow authenticated users to upload to any bucket
 create policy "storage_insert_authenticated" on storage.objects
