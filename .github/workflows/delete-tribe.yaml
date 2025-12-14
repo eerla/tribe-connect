@@ -19,7 +19,6 @@ on:
 
 jobs:
   run-delete:
-    environment: preview
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
