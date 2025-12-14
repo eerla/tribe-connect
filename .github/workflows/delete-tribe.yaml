@@ -1,8 +1,9 @@
 name: Delete Tribe Storage
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       limit:
