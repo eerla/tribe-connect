@@ -19,9 +19,15 @@ on:
 
 jobs:
   run-delete:
+    environment: preview
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify required envs are present
+        run: |
+          echo "Checking required environment variables..."
+          if [ -z "$SUPABASE_URL" ]; then echo "MISSING: SUPABASE_URL"; exit 2; else echo "SUPABASE_URL present"; fi
+          if [ -z "$SUPABASE_SERVICE_KEY" ]; then echo "MISSING: SUPABASE_SERVICE_KEY"; exit 2; else echo "SUPABASE_SERVICE_KEY present"; fi
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
