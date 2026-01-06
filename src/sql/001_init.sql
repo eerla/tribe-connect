@@ -375,3 +375,16 @@ for insert with check (
     )
   )
 );
+
+-- Event comments: user can delete own; organizer can delete any on their event
+create policy "event_comments_delete_own" on public.event_comments 
+for delete using (auth.uid() = user_id);
+
+create policy "event_comments_delete_organizer" on public.event_comments
+for delete using (
+  exists (
+    select 1 from public.events e
+    where e.id = event_comments.event_id
+      and e.organizer = auth.uid()
+  )
+);
