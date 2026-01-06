@@ -46,7 +46,7 @@ create index if not exists idx_tribe_members_tribe on public.tribe_members (trib
 -- Events
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
-  tribe_id uuid references public.tribes (id) on delete set null,
+  tribe_id uuid references public.tribes (id) on delete cascade,
   organizer uuid not null references auth.users (id) on delete cascade,
   title text not null,
   slug text unique,
@@ -218,6 +218,30 @@ create trigger set_timestamp_profiles before update on public.profiles for each 
 create trigger set_timestamp_tribes before update on public.tribes for each row execute procedure public.set_timestamp();
 create trigger set_timestamp_events before update on public.events for each row execute procedure public.set_timestamp();
 
+-- Ensure tribe deletion also removes related messages and other non-FK data
+-- Function to cleanup tribe-related rows that are not referenced by FK constraints
+create or replace function public.delete_tribe_related_objects() returns trigger language plpgsql as $$
+begin
+  -- remove messages in the tribe channel
+  delete from public.messages where channel = 'tribe:' || old.id;
+  -- add other cleanup operations here if needed (notifications, files, etc.)
+  return old;
+end;
+$$;
+
+-- Install trigger (safe to run multiple times: drop then create)
+drop trigger if exists trigger_delete_tribe_related on public.tribes;
+create trigger trigger_delete_tribe_related
+  after delete on public.tribes
+  for each row
+  execute procedure public.delete_tribe_related_objects();
+
+-- Migration for existing databases: replace events.tribe_id FK to cascade on delete
+-- Drop existing FK (if present) and recreate with ON DELETE CASCADE
+alter table if exists public.events drop constraint if exists events_tribe_id_fkey;
+alter table if exists public.events
+  add constraint events_tribe_id_fkey foreign key (tribe_id) references public.tribes(id) on delete cascade;
+
 -- Allow authenticated users to upload to any bucket
 create policy "storage_insert_authenticated" on storage.objects
   for insert
@@ -276,3 +300,109 @@ create policy "event_saves_delete_own" on public.event_saves for delete using (a
 
 create index if not exists idx_event_saves_event on public.event_saves (event_id);
 create index if not exists idx_event_saves_user on public.event_saves (user_id);
+
+-- tribe chat
+-- Messages: enforce membership/ownership
+drop policy if exists "messages_select" on public.messages;
+drop policy if exists "messages_insert" on public.messages;
+
+-- Tribe channels
+create policy "messages_select_tribe_member" on public.messages
+for select using (
+  channel like 'tribe:%'
+  and (
+    exists (
+      select 1 from public.tribe_members tm
+      where tm.tribe_id = split_part(channel, ':', 2)::uuid
+        and tm.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.tribes t
+      where t.id = split_part(channel, ':', 2)::uuid
+        and t.owner = auth.uid()
+    )
+  )
+);
+
+create policy "messages_insert_tribe_member" on public.messages
+for insert with check (
+  channel like 'tribe:%'
+  and (
+    exists (
+      select 1 from public.tribe_members tm
+      where tm.tribe_id = split_part(channel, ':', 2)::uuid
+        and tm.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.tribes t
+      where t.id = split_part(channel, ':', 2)::uuid
+        and t.owner = auth.uid()
+    )
+  )
+);
+
+-- Event channels (optional now, add if you plan event chat)
+create policy "messages_select_event_attendee_or_organizer" on public.messages
+for select using (
+  channel like 'event:%'
+  and (
+    exists (
+      select 1 from public.event_attendees ea
+      where ea.event_id = split_part(channel, ':', 2)::uuid
+        and ea.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.events e
+      where e.id = split_part(channel, ':', 2)::uuid
+        and e.organizer = auth.uid()
+    )
+  )
+);
+
+create policy "messages_insert_event_attendee_or_organizer" on public.messages
+for insert with check (
+  channel like 'event:%'
+  and (
+    exists (
+      select 1 from public.event_attendees ea
+      where ea.event_id = split_part(channel, ':', 2)::uuid
+        and ea.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.events e
+      where e.id = split_part(channel, ':', 2)::uuid
+        and e.organizer = auth.uid()
+    )
+  )
+);
+
+-- Event comments: user can delete own; organizer can delete any on their event
+create policy "event_comments_delete_own" on public.event_comments 
+for delete using (auth.uid() = user_id);
+
+create policy "event_comments_delete_organizer" on public.event_comments
+for delete using (
+  exists (
+    select 1 from public.events e
+    where e.id = event_comments.event_id
+      and e.organizer = auth.uid()
+  )
+);
+
+
+-- Allow users to update their own notifications (for marking as read)
+create policy "notifications_update_own" on public.notifications 
+for update using (auth.uid() = user_id);
+
+-- Update event_comments insert policy to block cancelled events
+drop policy if exists "event_comments_insert" on public.event_comments;
+
+create policy "event_comments_insert" on public.event_comments 
+for insert with check (
+  auth.role() = 'authenticated' 
+  and not exists (
+    select 1 from public.events e 
+    where e.id = event_comments.event_id 
+      and e.is_cancelled = true
+  )
+);

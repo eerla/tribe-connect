@@ -33,6 +33,7 @@ import { toast } from '@/hooks/use-toast';
 import useShare from '@/hooks/useShare';
 import { format } from 'date-fns';
 import useSavedEvents from '@/hooks/useSavedEvents';
+import { EventComments } from '@/components/event/EventComments';
 
 interface Event {
   id: string;
@@ -224,6 +225,20 @@ export default function EventDetail() {
       if (typeof refetchUserEvents === 'function') {
         try { await refetchUserEvents(); } catch {}
       }
+
+      // Notify event organizer (only if not self-RSVP)
+      if (event.organizer && event.organizer !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: event.organizer,
+          actor_id: user.id,
+          type: 'event_rsvp',
+          payload: {
+            event_id: event.id,
+            event_title: event.title,
+          },
+        });
+      }
+
       toast({
         title: "RSVP Confirmed!",
         description: `You're going to ${event.title}`,
@@ -281,28 +296,30 @@ export default function EventDetail() {
       setEvent({ ...event, is_cancelled: true });
       setShowCancelDialog(false);
       
-      // TODO: Notifications are not yet enabled - uncomment when notification system is ready
-      // Fetch all attendees to notify them
-      // const { data: attendees, error: attendeesError } = await supabase
-      //   .from('event_attendees')
-      //   .select('user_id')
-      //   .eq('event_id', event.id);
-      // 
-      // if (!attendeesError && attendees) {
-      //   // Send notifications to all attendees
-      //   for (const attendee of attendees) {
-      //     await supabase
-      //       .from('notifications')
-      //       .insert({
-      //         user_id: attendee.user_id,
-      //         type: 'event_cancelled',
-      //         title: 'Event Cancelled',
-      //         message: `The event "${event.title}" has been cancelled.`,
-      //         related_id: event.id,
-      //         related_type: 'event',
-      //       });
-      //   }
-      // }
+      // Fetch all attendees and notify them
+      const { data: attendees, error: attendeesError } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', event.id);
+      
+      if (!attendeesError && attendees && attendees.length > 0) {
+        // Send notifications to all attendees (except organizer)
+        const notificationsToInsert = attendees
+          .filter(attendee => attendee.user_id !== user?.id)
+          .map(attendee => ({
+            user_id: attendee.user_id,
+            actor_id: user?.id,
+            type: 'event_cancelled',
+            payload: {
+              event_id: event.id,
+              event_title: event.title,
+            },
+          }));
+
+        if (notificationsToInsert.length > 0) {
+          await supabase.from('notifications').insert(notificationsToInsert);
+        }
+      }
       
       toast({
         title: "Event Cancelled",
@@ -531,6 +548,26 @@ export default function EventDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Comments Section */}
+      {event && (
+        <section className="container py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="text-2xl font-heading font-bold mb-6">Comments</h2>
+            <EventComments 
+              eventId={event.id}
+              eventTitle={event.title}
+              organizerId={event.organizer}
+              isAttendee={isRSVPed}
+              isOrganizer={user?.id === event.organizer}
+              isCancelled={event.is_cancelled}
+            />
+          </motion.div>
+        </section>
+      )}
     </Layout>
   );
 }

@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -13,6 +13,16 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,11 +52,13 @@ export default function GroupDetail() {
   const { id } = useParams();
   const { isAuthenticated, user } = useAuth();
   const { refetch: refetchUserTribes } = useUserTribes(user?.id);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tribe, setTribe] = useState<Tribe | null>(null);
   const [tribeEvents, setTribeEvents] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+  const [tabValue, setTabValue] = useState<'events' | 'members' | 'chat'>('events');
 
   const { share } = useShare();
   const navigate = useNavigate();
@@ -58,6 +70,98 @@ export default function GroupDetail() {
       navigate(maybeFrom);
     } else {
       navigate(-1);
+    }
+  };
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteTribe = async () => {
+    if (!tribe?.id) return;
+    setIsDeleting(true);
+    try {
+      // 1) Try normal session retrieval
+      const { data } = await supabase.auth.getSession();
+      let token = (data as any)?.session?.access_token || null;
+
+      // 2) Fallback: scan local/session storage for common Supabase session keys
+      if (!token) {
+        const keys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
+        for (const k of keys) {
+          try {
+            const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            token = parsed?.access_token || parsed?.currentSession?.access_token || parsed?.persistedSession?.access_token || parsed?.provider_token || null;
+            if (token) { console.log('token found in storage key', k); break; }
+            // fallback raw token-looking value
+            if (!token && typeof raw === 'string' && raw.length > 50) {
+              token = raw;
+              console.log('token-like raw value in key', k);
+              break;
+            }
+          } catch (e) { /* ignore parse errors */ }
+        }
+      }
+
+      // Debug: show token presence (do not paste token anywhere)
+      console.log('delete-tribe token present?', Boolean(token));
+
+      if (!token) {
+        toast({ title: 'Not signed in', description: 'No valid session token found. Sign in and try again.', variant: 'destructive' });
+        return;
+      }
+
+      // Optionally call the server-side Edge Function to enqueue storage-deletion jobs.
+      // The function should use the service role key to write `deletion_jobs` safely.
+      // const deleteFnUrl = import.meta.env.VITE_DELETE_TRIBE_FUNCTION_URL || import.meta.env.VITE_SUPABASE_FUNCTION_DELETE_TRIBE || '';
+      // if (deleteFnUrl) {
+      //   try {
+      //     const resp = await fetch(deleteFnUrl, {
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //         Authorization: `Bearer ${token}`,
+      //       },
+      //       body: JSON.stringify({ tribeId: tribe.id })
+      //     });
+      //     if (!resp.ok) {
+      //       const text = await resp.text().catch(() => '');
+      //       console.warn('delete-tribe function returned non-ok', resp.status, text);
+      //       toast({ title: 'Warning', description: 'Storage cleanup could not be enqueued (function error).', variant: 'warning' });
+      //     } else {
+      //       toast({ title: 'Storage cleanup queued', description: 'Storage deletion jobs were enqueued for this tribe.', variant: 'default' });
+      //     }
+      //   } catch (fnErr) {
+      //     console.warn('Failed to call delete-tribe function', fnErr);
+      //     toast({ title: 'Warning', description: 'Failed to contact storage cleanup function.', variant: 'warning' });
+      //   }
+      // }
+
+      // Delete tribe row via Supabase.
+      const { error: delError } = await supabase
+        .from('tribes')
+        .delete()
+        .eq('id', tribe.id);
+
+      if (delError) {
+        throw delError;
+      }
+      // TODO: Storage files were not removed.
+      toast({ title: 'Tribe deleted', description: 'The tribe was deleted.', variant: 'default' });
+      if (typeof refetchUserTribes === 'function') {
+        try { await refetchUserTribes(); } catch {}
+      }
+      navigate('/groups');
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        toast({ title: 'Timeout', description: 'Delete operation timed out', variant: 'destructive' });
+      } else {
+        console.error('Error deleting tribe:', err);
+        toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
+      }
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -83,6 +187,14 @@ export default function GroupDetail() {
 
     fetchTribe();
   }, [id]);
+
+  // Sync tab selection from URL (?tab=chat|events|members)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'chat' || tabParam === 'members' || tabParam === 'events') {
+      setTabValue(tabParam);
+    }
+  }, [searchParams]);
 
   // Fetch tribe events
   useEffect(() => {
@@ -208,6 +320,19 @@ export default function GroupDetail() {
         }
       } catch (err) {
         // ignore member refresh errors
+      }
+
+      // Notify tribe owner (only if not self-join)
+      if (tribe.owner && tribe.owner !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: tribe.owner,
+          actor_id: user.id,
+          type: 'tribe_join',
+          payload: {
+            tribe_id: tribe.id,
+            tribe_title: tribe.title,
+          },
+        });
       }
 
       toast({
@@ -372,6 +497,18 @@ export default function GroupDetail() {
                 Share
               </Button>
               {user?.id === tribe.owner && (
+                <>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="ml-2"
+                  >
+                    Delete Tribe
+                  </Button>
+                </>
+              )}
+              {user?.id === tribe.owner && (
                 <Button asChild size="lg" className="ml-2">
                   <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
                 </Button>
@@ -380,9 +517,42 @@ export default function GroupDetail() {
           </div>
         </motion.div>
 
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Tribe</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{tribe?.title}"? This will remove the tribe and its membership list. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Keep Tribe</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTribe}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Yes, Delete Tribe'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         {/* Tabs */}
-        <Tabs defaultValue="events" className="space-y-6">
+        <Tabs
+          value={tabValue}
+          onValueChange={(val) => {
+            setTabValue(val as typeof tabValue);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('tab', val);
+              return next;
+            }, { replace: true });
+          }}
+          className="space-y-6"
+        >
           <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="events" className="gap-2">
               <Calendar className="h-4 w-4" />
@@ -468,7 +638,11 @@ export default function GroupDetail() {
               animate={{ opacity: 1 }}
               className="bg-card rounded-2xl border border-border overflow-hidden"
             >
-              <TribeChat tribeId={tribe.id} isMember={isAuthenticated} />
+              <TribeChat 
+                tribeId={tribe.id} 
+                isMember={isMember}
+                onJoinClick={handleJoin}
+              />
             </motion.div>
           </TabsContent>
         </Tabs>

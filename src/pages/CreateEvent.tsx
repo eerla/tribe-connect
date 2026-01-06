@@ -46,6 +46,15 @@ export default function CreateEvent() {
   const [bannerImage, setBannerImage] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
 
+  // Derived constraints for date/time pickers
+  const todayDate = new Date().toISOString().split('T')[0];
+  const currentTime = new Date().toTimeString().slice(0, 5);
+  const startTimeMin = startDate === todayDate ? currentTime : undefined;
+  const endDateMin = startDate || todayDate;
+  const endTimeMin = (endDate && startDate && endDate === startDate && startTime)
+    ? startTime
+    : undefined;
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -163,6 +172,15 @@ export default function CreateEvent() {
       return;
     }
 
+    if ((endDate && !endTime) || (!endDate && endTime)) {
+      toast({
+        title: "Incomplete end time",
+        description: "Please provide both end date and end time or leave both empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!isOnline && !location) {
       toast({
         title: "Missing location",
@@ -175,11 +193,40 @@ export default function CreateEvent() {
     setIsLoading(true);
     
     try {
-      // Combine date and time into ISO strings
-      const startsAt = new Date(`${startDate}T${startTime}`).toISOString();
-      const endsAt = endDate && endTime 
-        ? new Date(`${endDate}T${endTime}`).toISOString()
-        : null;
+      const now = new Date();
+      const startDateTime = new Date(`${startDate}T${startTime}`);
+      if (isNaN(startDateTime.getTime())) {
+        throw new Error('Invalid start date/time');
+      }
+      if (startDateTime <= now) {
+        toast({
+          title: "Start time must be in the future",
+          description: "Pick a start date and time later than the current time",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      let endsAt: string | null = null;
+      if (endDate && endTime) {
+        const endDateTime = new Date(`${endDate}T${endTime}`);
+        if (isNaN(endDateTime.getTime())) {
+          throw new Error('Invalid end date/time');
+        }
+        if (endDateTime <= startDateTime) {
+          toast({
+            title: "End must follow start",
+            description: "Choose an end date/time after the start date/time",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        endsAt = endDateTime.toISOString();
+      }
+
+      const startsAt = startDateTime.toISOString();
 
       // Create slug from title
       const slug = title.toLowerCase().replace(/\s+/g, '-');
@@ -432,6 +479,7 @@ export default function CreateEvent() {
                     type="date" 
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    min={todayDate}
                     required 
                   />
                 </div>
@@ -442,6 +490,7 @@ export default function CreateEvent() {
                     type="time" 
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
+                    min={startTimeMin}
                     required 
                   />
                 </div>
@@ -455,6 +504,7 @@ export default function CreateEvent() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    min={endDateMin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -464,6 +514,7 @@ export default function CreateEvent() {
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
+                    min={endTimeMin}
                   />
                 </div>
               </div>

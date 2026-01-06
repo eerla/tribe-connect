@@ -66,14 +66,14 @@ export default function Messages() {
       tribesData.map(async (tribe) => {
         const { data: messages } = await supabase
           .from('messages')
-          .select('content, created_at')
-          .eq('tribe_id', tribe.id)
+          .select('body, created_at')
+          .eq('channel', `tribe:${tribe.id}`)
           .order('created_at', { ascending: false })
           .limit(1);
 
         return {
           ...tribe,
-          last_message: messages?.[0]?.content || null,
+          last_message: messages?.[0]?.body || null,
           last_message_at: messages?.[0]?.created_at || null,
         };
       })

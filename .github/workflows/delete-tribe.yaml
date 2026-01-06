@@ -1,0 +1,60 @@
+name: Delete Tribe Storage
+
+on:
+  push:
+    branches:
+      - 'dev-guru-1'
+    # paths:
+    #   - 'src/delete-tribe/**'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max number of deletion jobs to fetch (optional)'
+        required: false
+        default: '10'
+      dry_run:
+        description: 'If true, list jobs but do not perform deletes'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 2 * * *' # optional nightly run (UTC)
+
+jobs:
+  run-delete:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print GitHub run context
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "GITHUB_HEAD_REF=$GITHUB_HEAD_REF"
+          echo "GITHUB_BASE_REF=$GITHUB_BASE_REF"
+          echo "Actor: $GITHUB_ACTOR"
+          echo "Listing SUPABASE-related env keys (no values):"
+          env | grep SUPABASE | awk -F= '{print $1}' || true
+      - name: Verify required envs are present
+        run: |
+          echo "Checking required environment variables...."
+          if [ -z "$SUPABASE_URL" ]; then echo "MISSING: SUPABASE_URL"; exit 2; else echo "SUPABASE_URL present"; fi
+          if [ -z "$SUPABASE_SERVICE_KEY" ]; then echo "MISSING: SUPABASE_SERVICE_KEY"; exit 2; else echo "SUPABASE_SERVICE_KEY present"; fi
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install deps
+        run: npm ci
+      - name: Run deletion-job worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DELETE_BATCH_SIZE: '20'
+          DELETE_JOB_FETCH_LIMIT: ${{ github.event.inputs.limit || '100' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: |
+          echo "SUPABASE_URL length: ${#SUPABASE_URL}"
+          echo "SUPABASE_SERVICE_KEY length: ${#SUPABASE_SERVICE_KEY}"
+          node scripts/delete-tribe-storage.js
