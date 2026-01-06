@@ -98,11 +98,31 @@ export default function Notifications() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
-            setNotifications(prev => [payload.new as Notification, ...prev]);
+          async (payload) => {
+            const newNotif = payload.new as Notification;
+            
+            // Fetch the actor profile for the new notification
+            let notifWithProfile: NotificationWithProfile = newNotif;
+            if (newNotif.actor_id) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name, avatar_url')
+                .eq('id', newNotif.actor_id)
+                .maybeSingle();
+              
+              notifWithProfile = {
+                ...newNotif,
+                actor_profile: profile || undefined,
+              };
+            }
+            
+            setNotifications(prev => [notifWithProfile, ...prev]);
+            
+            // Use the getNotificationContent helper to show proper toast
+            const content = getNotificationContent(notifWithProfile);
             toast({
-              title: (payload.new as Notification).title,
-              description: (payload.new as Notification).message || undefined,
+              title: content.title,
+              description: content.message,
             });
           }
         )
@@ -122,7 +142,7 @@ export default function Notifications() {
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(50) as { data: Notification[] | null; error: any };
 
     if (error) {
       console.error('Error fetching notifications:', error);

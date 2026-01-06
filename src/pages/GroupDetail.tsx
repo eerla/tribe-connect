@@ -33,20 +33,10 @@ import { useUserTribes } from '@/hooks/useTribes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import useShare from '@/hooks/useShare';
+import type { Database } from '@/integrations/supabase/types';
 
-interface Tribe {
-  id: string;
-  owner: string;
-  title: string;
-  slug?: string;
-  description?: string | null;
-  cover_url?: string | null;
-  city?: string | null;
-  is_private?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  [key: string]: any;
-}
+type Tribe = Database['public']['Tables']['tribes']['Row'];
+type Event = Database['public']['Tables']['events']['Row'];
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -207,10 +197,10 @@ export default function GroupDetail() {
           .select('*')
           .eq('tribe_id', tribe.id)
           .eq('is_cancelled', false)
-          .order('starts_at', { ascending: true });
+          .order('starts_at', { ascending: true }) as { data: Event[] | null; error: any };
 
         if (error) throw error;
-        setTribeEvents((data as any[]) || []);
+        setTribeEvents(data || []);
       } catch (error) {
         console.error('Error fetching tribe events:', error);
       }
