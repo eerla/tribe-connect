@@ -26,6 +26,7 @@ interface EventCommentsProps {
   organizerId?: string;
   isAttendee?: boolean;
   isOrganizer?: boolean;
+  isCancelled?: boolean;
 }
 
 export function EventComments({ 
@@ -33,7 +34,8 @@ export function EventComments({
   eventTitle,
   organizerId,
   isAttendee = false, 
-  isOrganizer = false 
+  isOrganizer = false,
+  isCancelled = false
 }: EventCommentsProps) {
   const { user, isAuthenticated } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -308,8 +310,8 @@ export function EventComments({
         <div ref={commentsEndRef} />
       </div>
 
-      {/* Comment Composer */}
-      {(isAttendee || isOrganizer) && (
+      {/* Comment Composer - hide if cancelled */}
+      {!isCancelled && (isAttendee || isOrganizer) && (
         <form onSubmit={sendComment} className="space-y-3">
           <Textarea
             placeholder="Share your thoughts about this event..."
@@ -341,7 +343,17 @@ export function EventComments({
         </form>
       )}
 
-      {!isAttendee && !isOrganizer && (
+      {/* Show message if event is cancelled */}
+      {isCancelled && (
+        <div className="text-center py-8 bg-muted/30 rounded-xl border border-border">
+          <p className="text-sm text-muted-foreground">
+            This event has been cancelled - comments are closed
+          </p>
+        </div>
+      )}
+
+      {/* Show message if not attendee/organizer and not cancelled */}
+      {!isCancelled && !isAttendee && !isOrganizer && (
         <div className="text-center py-8 text-muted-foreground">
           <p className="text-sm">Join this event to post comments</p>
         </div>

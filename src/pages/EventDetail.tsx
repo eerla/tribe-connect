@@ -296,28 +296,30 @@ export default function EventDetail() {
       setEvent({ ...event, is_cancelled: true });
       setShowCancelDialog(false);
       
-      // TODO: Notifications are not yet enabled - uncomment when notification system is ready
-      // Fetch all attendees to notify them
-      // const { data: attendees, error: attendeesError } = await supabase
-      //   .from('event_attendees')
-      //   .select('user_id')
-      //   .eq('event_id', event.id);
-      // 
-      // if (!attendeesError && attendees) {
-      //   // Send notifications to all attendees
-      //   for (const attendee of attendees) {
-      //     await supabase
-      //       .from('notifications')
-      //       .insert({
-      //         user_id: attendee.user_id,
-      //         type: 'event_cancelled',
-      //         title: 'Event Cancelled',
-      //         message: `The event "${event.title}" has been cancelled.`,
-      //         related_id: event.id,
-      //         related_type: 'event',
-      //       });
-      //   }
-      // }
+      // Fetch all attendees and notify them
+      const { data: attendees, error: attendeesError } = await supabase
+        .from('event_attendees')
+        .select('user_id')
+        .eq('event_id', event.id);
+      
+      if (!attendeesError && attendees && attendees.length > 0) {
+        // Send notifications to all attendees (except organizer)
+        const notificationsToInsert = attendees
+          .filter(attendee => attendee.user_id !== user?.id)
+          .map(attendee => ({
+            user_id: attendee.user_id,
+            actor_id: user?.id,
+            type: 'event_cancelled',
+            payload: {
+              event_id: event.id,
+              event_title: event.title,
+            },
+          }));
+
+        if (notificationsToInsert.length > 0) {
+          await supabase.from('notifications').insert(notificationsToInsert);
+        }
+      }
       
       toast({
         title: "Event Cancelled",
@@ -561,6 +563,7 @@ export default function EventDetail() {
               organizerId={event.organizer}
               isAttendee={isRSVPed}
               isOrganizer={user?.id === event.organizer}
+              isCancelled={event.is_cancelled}
             />
           </motion.div>
         </section>

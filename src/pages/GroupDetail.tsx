@@ -322,6 +322,19 @@ export default function GroupDetail() {
         // ignore member refresh errors
       }
 
+      // Notify tribe owner (only if not self-join)
+      if (tribe.owner && tribe.owner !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: tribe.owner,
+          actor_id: user.id,
+          type: 'tribe_join',
+          payload: {
+            tribe_id: tribe.id,
+            tribe_title: tribe.title,
+          },
+        });
+      }
+
       toast({
         title: "Welcome to the tribe!",
         description: `You've joined ${tribe.title || 'this tribe'}`,

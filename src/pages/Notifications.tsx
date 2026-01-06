@@ -57,6 +57,12 @@ export default function Notifications() {
           message: notif.payload?.comment_preview || notif.payload?.event_title,
           link: `/events/${notif.payload?.event_id}`,
         };
+      case 'event_cancelled':
+        return {
+          title: 'Event cancelled',
+          message: `"${notif.payload?.event_title}" has been cancelled`,
+          link: `/events/${notif.payload?.event_id}`,
+        };
       case 'tribe_join':
         return {
           title: `${actorName} joined your tribe`,
@@ -185,6 +191,7 @@ export default function Notifications() {
     switch (type) {
       case 'event_rsvp':
       case 'event_comment':
+      case 'event_cancelled':
       case 'event_reminder':
         return <Calendar className="h-5 w-5" />;
       case 'tribe_join':

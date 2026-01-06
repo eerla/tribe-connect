@@ -393,3 +393,16 @@ for delete using (
 -- Allow users to update their own notifications (for marking as read)
 create policy "notifications_update_own" on public.notifications 
 for update using (auth.uid() = user_id);
+
+-- Update event_comments insert policy to block cancelled events
+drop policy if exists "event_comments_insert" on public.event_comments;
+
+create policy "event_comments_insert" on public.event_comments 
+for insert with check (
+  auth.role() = 'authenticated' 
+  and not exists (
+    select 1 from public.events e 
+    where e.id = event_comments.event_id 
+      and e.is_cancelled = true
+  )
+);
