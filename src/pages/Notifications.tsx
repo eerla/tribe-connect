@@ -20,19 +20,57 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
   id: string;
+  user_id: string;
+  actor_id: string | null;
   type: string;
-  title: string;
-  message: string | null;
-  link: string | null;
+  payload: any;
   is_read: boolean;
   created_at: string;
+}
+
+interface NotificationWithProfile extends Notification {
+  actor_profile?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 export default function Notifications() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getNotificationContent = (notif: NotificationWithProfile) => {
+    const actorName = notif.actor_profile?.full_name || 'Someone';
+    
+    switch (notif.type) {
+      case 'event_rsvp':
+        return {
+          title: `${actorName} is attending your event`,
+          message: notif.payload?.event_title || 'an event',
+          link: `/events/${notif.payload?.event_id}`,
+        };
+      case 'event_comment':
+        return {
+          title: `${actorName} commented on your event`,
+          message: notif.payload?.comment_preview || notif.payload?.event_title,
+          link: `/events/${notif.payload?.event_id}`,
+        };
+      case 'tribe_join':
+        return {
+          title: `${actorName} joined your tribe`,
+          message: notif.payload?.tribe_title || 'your tribe',
+          link: `/groups/${notif.payload?.tribe_id}`,
+        };
+      default:
+        return {
+          title: 'New notification',
+          message: JSON.stringify(notif.payload),
+          link: null,
+        };
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -77,11 +115,41 @@ export default function Notifications() {
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    if (!error && data) {
+    if (error) {
+      console.error('Error fetching notifications:', error);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setNotifications([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch actor profiles
+    const actorIds = [...new Set(data.map(n => n.actor_id).filter(Boolean))];
+    if (actorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', actorIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]));
+
+      const notificationsWithProfiles = data.map(notif => ({
+        ...notif,
+        actor_profile: notif.actor_id ? profileMap.get(notif.actor_id) : undefined,
+      }));
+
+      setNotifications(notificationsWithProfiles);
+    } else {
       setNotifications(data);
     }
+
     setIsLoading(false);
   };
 
@@ -115,11 +183,12 @@ export default function Notifications() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'event_invite':
+      case 'event_rsvp':
+      case 'event_comment':
       case 'event_reminder':
         return <Calendar className="h-5 w-5" />;
+      case 'tribe_join':
       case 'tribe_invite':
-      case 'tribe_update':
         return <Users className="h-5 w-5" />;
       case 'new_message':
         return <MessageCircle className="h-5 w-5" />;
@@ -196,67 +265,70 @@ export default function Notifications() {
               </p>
             </motion.div>
           ) : (
-            notifications.map((notification, index) => (
-              <motion.div
-                key={notification.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={`bg-card rounded-xl border transition-colors ${
-                  notification.is_read
-                    ? 'border-border'
-                    : 'border-primary/30 bg-primary/5'
-                }`}
-              >
-                <div className="p-4 flex gap-4">
-                  <div
-                    className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
-                      notification.is_read
-                        ? 'bg-muted text-muted-foreground'
-                        : 'bg-primary/10 text-primary'
-                    }`}
-                  >
-                    {getIcon(notification.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{notification.title}</p>
-                        {notification.message && (
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {notification.message}
+            notifications.map((notification, index) => {
+              const content = getNotificationContent(notification);
+              return (
+                <motion.div
+                  key={notification.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`bg-card rounded-xl border transition-colors ${
+                    notification.is_read
+                      ? 'border-border'
+                      : 'border-primary/30 bg-primary/5'
+                  }`}
+                >
+                  <div className="p-4 flex gap-4">
+                    <div
+                      className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                        notification.is_read
+                          ? 'bg-muted text-muted-foreground'
+                          : 'bg-primary/10 text-primary'
+                      }`}
+                    >
+                      {getIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{content.title}</p>
+                          {content.message && (
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {content.message}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(notification.created_at), {
+                              addSuffix: true,
+                            })}
                           </p>
+                        </div>
+                        {!notification.is_read && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => markAsRead(notification.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
                       </div>
-                      {!notification.is_read && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
+                      {content.link && (
+                        <Link
+                          to={content.link}
+                          className="text-sm text-primary hover:underline mt-2 inline-block"
                           onClick={() => markAsRead(notification.id)}
                         >
-                          <Check className="h-4 w-4" />
-                        </Button>
+                          View details →
+                        </Link>
                       )}
                     </div>
-                    {notification.link && (
-                      <Link
-                        to={notification.link}
-                        className="text-sm text-primary hover:underline mt-2 inline-block"
-                        onClick={() => markAsRead(notification.id)}
-                      >
-                        View details →
-                      </Link>
-                    )}
                   </div>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </div>
       </div>

@@ -225,6 +225,20 @@ export default function EventDetail() {
       if (typeof refetchUserEvents === 'function') {
         try { await refetchUserEvents(); } catch {}
       }
+
+      // Notify event organizer (only if not self-RSVP)
+      if (event.organizer && event.organizer !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: event.organizer,
+          actor_id: user.id,
+          type: 'event_rsvp',
+          payload: {
+            event_id: event.id,
+            event_title: event.title,
+          },
+        });
+      }
+
       toast({
         title: "RSVP Confirmed!",
         description: `You're going to ${event.title}`,
@@ -543,6 +557,8 @@ export default function EventDetail() {
             <h2 className="text-2xl font-heading font-bold mb-6">Comments</h2>
             <EventComments 
               eventId={event.id}
+              eventTitle={event.title}
+              organizerId={event.organizer}
               isAttendee={isRSVPed}
               isOrganizer={user?.id === event.organizer}
             />

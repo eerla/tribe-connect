@@ -22,11 +22,19 @@ interface Comment {
 
 interface EventCommentsProps {
   eventId: string;
+  eventTitle?: string;
+  organizerId?: string;
   isAttendee?: boolean;
   isOrganizer?: boolean;
 }
 
-export function EventComments({ eventId, isAttendee = false, isOrganizer = false }: EventCommentsProps) {
+export function EventComments({ 
+  eventId, 
+  eventTitle,
+  organizerId,
+  isAttendee = false, 
+  isOrganizer = false 
+}: EventCommentsProps) {
   const { user, isAuthenticated } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -149,6 +157,20 @@ export function EventComments({ eventId, isAttendee = false, isOrganizer = false
       });
 
       if (error) throw error;
+
+      // Notify event organizer (only if not commenting on own event)
+      if (organizerId && organizerId !== user.id) {
+        await supabase.from('notifications').insert({
+          user_id: organizerId,
+          actor_id: user.id,
+          type: 'event_comment',
+          payload: {
+            event_id: eventId,
+            event_title: eventTitle || 'an event',
+            comment_preview: newComment.trim().slice(0, 100),
+          },
+        });
+      }
 
       setNewComment('');
     } catch (error: any) {

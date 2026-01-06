@@ -388,3 +388,8 @@ for delete using (
       and e.organizer = auth.uid()
   )
 );
+
+
+-- Allow users to update their own notifications (for marking as read)
+create policy "notifications_update_own" on public.notifications 
+for update using (auth.uid() = user_id);
