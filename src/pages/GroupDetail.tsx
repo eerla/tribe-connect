@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -52,11 +52,13 @@ export default function GroupDetail() {
   const { id } = useParams();
   const { isAuthenticated, user } = useAuth();
   const { refetch: refetchUserTribes } = useUserTribes(user?.id);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tribe, setTribe] = useState<Tribe | null>(null);
   const [tribeEvents, setTribeEvents] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+  const [tabValue, setTabValue] = useState<'events' | 'members' | 'chat'>('events');
 
   const { share } = useShare();
   const navigate = useNavigate();
@@ -185,6 +187,14 @@ export default function GroupDetail() {
 
     fetchTribe();
   }, [id]);
+
+  // Sync tab selection from URL (?tab=chat|events|members)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'chat' || tabParam === 'members' || tabParam === 'events') {
+      setTabValue(tabParam);
+    }
+  }, [searchParams]);
 
   // Fetch tribe events
   useEffect(() => {
@@ -518,7 +528,18 @@ export default function GroupDetail() {
 
 
         {/* Tabs */}
-        <Tabs defaultValue="events" className="space-y-6">
+        <Tabs
+          value={tabValue}
+          onValueChange={(val) => {
+            setTabValue(val as typeof tabValue);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('tab', val);
+              return next;
+            }, { replace: true });
+          }}
+          className="space-y-6"
+        >
           <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="events" className="gap-2">
               <Calendar className="h-4 w-4" />
@@ -604,7 +625,11 @@ export default function GroupDetail() {
               animate={{ opacity: 1 }}
               className="bg-card rounded-2xl border border-border overflow-hidden"
             >
-              <TribeChat tribeId={tribe.id} isMember={isAuthenticated} />
+              <TribeChat 
+                tribeId={tribe.id} 
+                isMember={isMember}
+                onJoinClick={handleJoin}
+              />
             </motion.div>
           </TabsContent>
         </Tabs>

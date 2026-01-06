@@ -44,8 +44,17 @@ const parsePublicUrl = (url: string | null) => {
 };
 
 export default async function (req: Request) {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const handlerStart = Date.now();
+  console.log('delete-tribe: handler start', { method: req.method, url: req.url, ts: handlerStart });
+
+  if (req.method === 'OPTIONS') {
+    console.log('delete-tribe: OPTIONS short-circuit', { elapsed_ms: Date.now() - handlerStart });
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+  if (req.method !== 'POST') {
+    console.log('delete-tribe: method not allowed', { method: req.method });
+    return json({ error: 'Method not allowed' }, 405);
+  }
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
     console.log('delete-tribe: missing env', { hasUrl: Boolean(SUPABASE_URL), hasKey: Boolean(SERVICE_KEY) });
@@ -54,9 +63,10 @@ export default async function (req: Request) {
 
   const startTs = Date.now();
   let body: any = {};
-  try { body = await req.json(); } catch { body = {}; }
+  try { body = await req.json(); } catch (e) { console.log('delete-tribe: body parse failed', { error: (e as Error).message }); body = {}; }
   const tribeId = body?.tribeId;
   const dryRun = !!body?.dryRun;
+  console.log('delete-tribe: parsed body', { tribeId, dryRun, elapsed_ms: Date.now() - startTs });
 
   const jobs: Array<any> = [];
   const authHeader = req.headers.get('authorization') || '';
@@ -72,12 +82,20 @@ export default async function (req: Request) {
     // ignore
   }
 
-  if (!tribeId) return json({ error: 'Missing tribeId' }, 400);
-  if (!accessToken && !isDevBypass) return json({ error: 'Missing Authorization token' }, 401);
+  console.log('delete-tribe: auth checks', { hasAuthHeader: Boolean(authHeader), isDevBypass });
+
+  if (!tribeId) {
+    console.log('delete-tribe: missing tribeId');
+    return json({ error: 'Missing tribeId' }, 400);
+  }
+  if (!accessToken && !isDevBypass) {
+    console.log('delete-tribe: missing access token and not dev bypass');
+    return json({ error: 'Missing Authorization token' }, 401);
+  }
 
   // quick debug short-circuit
   if (dryRun && req.headers.get('x-debug-quick')) {
-    console.log('delete-tribe: debug quick short-circuit', { tribeId });
+    console.log('delete-tribe: debug quick short-circuit', { tribeId, elapsed_ms: Date.now() - handlerStart });
     return json({ ok: 'debug-short-circuit', tribeId, note: 'no imports/no db' }, 200);
   }
 
@@ -90,28 +108,36 @@ export default async function (req: Request) {
     let userId: string | undefined;
 
     if (isDevBypass) {
-      console.log('delete-tribe: using dev bypass token');
+      console.log('delete-tribe: using dev bypass token - fetching tribe (dev)', { tribeId, elapsed_ms: Date.now() - handlerStart });
       // Fetch tribe first, then set userId to tribe owner so owner checks pass during testing.
+      const tribeFetchStart = Date.now();
       const tribeResp = await fetch(`${SUPABASE_URL}/rest/v1/tribes?id=eq.${tribeId}&select=id,owner,cover_url`, {
         headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
       });
+      console.log('delete-tribe: tribe fetch (dev) completed', { status: tribeResp.status, elapsed_ms: Date.now() - tribeFetchStart });
       if (!tribeResp.ok) {
         console.log('delete-tribe: tribe fetch failed (dev bypass)', { status: tribeResp.status });
         return json({ error: 'Tribe not found' }, 404);
       }
       const tribeRows = await tribeResp.json();
       tribeRow = Array.isArray(tribeRows) && tribeRows[0];
-      if (!tribeRow) return json({ error: 'Tribe not found' }, 404);
+      if (!tribeRow) {
+        console.log('delete-tribe: tribeRow missing after fetch (dev)');
+        return json({ error: 'Tribe not found' }, 404);
+      }
       userId = tribeRow.owner; // treat as owner for dev
       console.log('delete-tribe: dev bypass mapped to owner', { userId });
     } else {
       // 1) Validate user token: GET /auth/v1/user with user's token
+      console.log('delete-tribe: validating token via /auth/v1/user', { elapsed_ms: Date.now() - handlerStart });
+      const userFetchStart = Date.now();
       const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      console.log('delete-tribe: /auth/v1/user response', { status: userResp.status, elapsed_ms: Date.now() - userFetchStart });
       if (!userResp.ok) {
-        console.log('delete-tribe: auth /user returned', { status: userResp.status });
+        console.log('delete-tribe: auth /user returned non-ok', { status: userResp.status });
         return json({ error: 'Invalid token' }, 401);
       }
       const userData = await userResp.json();
@@ -119,16 +145,22 @@ export default async function (req: Request) {
       console.log('delete-tribe: validated user', { userId });
 
       // 2) Fetch tribe via PostgREST using SERVICE_KEY
+      console.log('delete-tribe: fetching tribe via PostgREST', { tribeId, elapsed_ms: Date.now() - handlerStart });
+      const tribeFetchStart = Date.now();
       const tribeResp = await fetch(`${SUPABASE_URL}/rest/v1/tribes?id=eq.${tribeId}&select=id,owner,cover_url`, {
         headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
       });
+      console.log('delete-tribe: tribe fetch response', { status: tribeResp.status, elapsed_ms: Date.now() - tribeFetchStart });
       if (!tribeResp.ok) {
         console.log('delete-tribe: tribe fetch failed', { status: tribeResp.status });
         return json({ error: 'Tribe not found' }, 404);
       }
       const tribeRows = await tribeResp.json();
       tribeRow = Array.isArray(tribeRows) && tribeRows[0];
-      if (!tribeRow) return json({ error: 'Tribe not found' }, 404);
+      if (!tribeRow) {
+        console.log('delete-tribe: tribeRow missing after fetch');
+        return json({ error: 'Tribe not found' }, 404);
+      }
       if (tribeRow.owner !== userId) {
         console.log('delete-tribe: not owner', { owner: tribeRow.owner, userId });
         return json({ error: 'Not authorized' }, 403);
@@ -137,15 +169,18 @@ export default async function (req: Request) {
     }
 
     // 3) Fetch events for tribe
+    console.log('delete-tribe: fetching events for tribe', { tribeId, elapsed_ms: Date.now() - handlerStart });
+    const eventsFetchStart = Date.now();
     const eventsResp = await fetch(`${SUPABASE_URL}/rest/v1/events?tribe_id=eq.${tribeId}&select=id,banner_url`, {
       headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
     });
+    console.log('delete-tribe: events fetch response', { status: eventsResp.status, elapsed_ms: Date.now() - eventsFetchStart });
     if (!eventsResp.ok) {
       console.log('delete-tribe: events fetch failed', { status: eventsResp.status });
       throw new Error('Failed to fetch events');
     }
     const events = await eventsResp.json();
-    console.log('delete-tribe: events count', events.length || 0);
+    console.log('delete-tribe: events count', { count: (events && events.length) || 0, elapsed_ms: Date.now() - handlerStart });
 
     // 4) Collect object paths
     const removalsByBucket: Record<string, string[]> = {};
@@ -160,7 +195,12 @@ export default async function (req: Request) {
       }
     }
 
-    if (dryRun) return json({ dryRun: true, removalsByBucket }, 200);
+    console.log('delete-tribe: removalsByBucket computed', { buckets: Object.keys(removalsByBucket), elapsed_ms: Date.now() - handlerStart });
+
+    if (dryRun) {
+      console.log('delete-tribe: dryRun returning removals', { removalsByBucket, elapsed_ms: Date.now() - handlerStart });
+      return json({ dryRun: true, removalsByBucket }, 200);
+    }
 
     // Instead of deleting storage objects here (which can be long-running),
     // enqueue deletion jobs into `deletion_jobs` table so an external worker
@@ -184,17 +224,22 @@ export default async function (req: Request) {
       }
     }
 
+    console.log('delete-tribe: planned jobs', { planned_count: jobs.length, sample_job: jobs[0] || null, elapsed_ms: Date.now() - handlerStart });
+
     if (jobs.length === 0) {
-      console.log('delete-tribe: no storage jobs to enqueue');
+      console.log('delete-tribe: no storage jobs to enqueue', { elapsed_ms: Date.now() - handlerStart });
       return json({ ok: true, inserted: 0 }, 200);
     }
 
     if (dryRun) {
+      console.log('delete-tribe: dryRun with jobs', { jobs, elapsed_ms: Date.now() - handlerStart });
       return json({ dryRun: true, plannedJobs: jobs }, 200);
     }
 
     // Insert jobs via PostgREST
     try {
+      console.log('delete-tribe: inserting jobs into deletion_jobs via PostgREST', { url: `${SUPABASE_URL}/rest/v1/deletion_jobs`, elapsed_ms: Date.now() - handlerStart });
+      const postStart = Date.now();
       const resp = await fetch(`${SUPABASE_URL}/rest/v1/deletion_jobs`, {
         method: 'POST',
         headers: {
@@ -205,22 +250,22 @@ export default async function (req: Request) {
         },
         body: JSON.stringify(jobs),
       });
-
+      console.log('delete-tribe: insertion response', { status: resp.status, elapsed_ms: Date.now() - postStart });
       if (!resp.ok) {
-        const text = await resp.text();
+        const text = await resp.text().catch(() => '<unreadable>');
         console.log('delete-tribe: failed to insert jobs', { status: resp.status, body: text });
         return json({ error: 'Failed to enqueue deletion jobs', details: text }, 500);
       }
 
       const inserted = await resp.json().catch(() => null);
-      console.log('delete-tribe: enqueued jobs', { count: Array.isArray(inserted) ? inserted.length : jobs.length });
+      console.log('delete-tribe: enqueued jobs', { count: Array.isArray(inserted) ? inserted.length : jobs.length, elapsed_ms: Date.now() - handlerStart });
       return json({ ok: true, inserted: Array.isArray(inserted) ? inserted.length : jobs.length, rows: inserted }, 200);
     } catch (e: unknown) {
       console.error('delete-tribe: enqueue exception', e);
       return json({ error: 'Failed to enqueue deletion jobs', details: e instanceof Error ? e.message : String(e) }, 500);
     }
   } catch (err: any) {
-    console.error('delete-tribe error', err);
+    console.error('delete-tribe error', err, { elapsed_ms: Date.now() - handlerStart });
     return json({ error: err?.message || 'Server error' }, 500);
   }
 }

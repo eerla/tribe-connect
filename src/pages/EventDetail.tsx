@@ -33,6 +33,7 @@ import { toast } from '@/hooks/use-toast';
 import useShare from '@/hooks/useShare';
 import { format } from 'date-fns';
 import useSavedEvents from '@/hooks/useSavedEvents';
+import { EventComments } from '@/components/event/EventComments';
 
 interface Event {
   id: string;
@@ -531,6 +532,23 @@ export default function EventDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Comments Section */}
+      {event && (
+        <section className="container py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="text-2xl font-heading font-bold mb-6">Comments</h2>
+            <EventComments 
+              eventId={event.id}
+              isAttendee={isRSVPed}
+              isOrganizer={user?.id === event.organizer}
+            />
+          </motion.div>
+        </section>
+      )}
     </Layout>
   );
 }

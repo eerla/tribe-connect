@@ -300,3 +300,78 @@ create policy "event_saves_delete_own" on public.event_saves for delete using (a
 
 create index if not exists idx_event_saves_event on public.event_saves (event_id);
 create index if not exists idx_event_saves_user on public.event_saves (user_id);
+
+-- tribe chat
+-- Messages: enforce membership/ownership
+drop policy if exists "messages_select" on public.messages;
+drop policy if exists "messages_insert" on public.messages;
+
+-- Tribe channels
+create policy "messages_select_tribe_member" on public.messages
+for select using (
+  channel like 'tribe:%'
+  and (
+    exists (
+      select 1 from public.tribe_members tm
+      where tm.tribe_id = split_part(channel, ':', 2)::uuid
+        and tm.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.tribes t
+      where t.id = split_part(channel, ':', 2)::uuid
+        and t.owner = auth.uid()
+    )
+  )
+);
+
+create policy "messages_insert_tribe_member" on public.messages
+for insert with check (
+  channel like 'tribe:%'
+  and (
+    exists (
+      select 1 from public.tribe_members tm
+      where tm.tribe_id = split_part(channel, ':', 2)::uuid
+        and tm.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.tribes t
+      where t.id = split_part(channel, ':', 2)::uuid
+        and t.owner = auth.uid()
+    )
+  )
+);
+
+-- Event channels (optional now, add if you plan event chat)
+create policy "messages_select_event_attendee_or_organizer" on public.messages
+for select using (
+  channel like 'event:%'
+  and (
+    exists (
+      select 1 from public.event_attendees ea
+      where ea.event_id = split_part(channel, ':', 2)::uuid
+        and ea.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.events e
+      where e.id = split_part(channel, ':', 2)::uuid
+        and e.organizer = auth.uid()
+    )
+  )
+);
+
+create policy "messages_insert_event_attendee_or_organizer" on public.messages
+for insert with check (
+  channel like 'event:%'
+  and (
+    exists (
+      select 1 from public.event_attendees ea
+      where ea.event_id = split_part(channel, ':', 2)::uuid
+        and ea.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.events e
+      where e.id = split_part(channel, ':', 2)::uuid
+        and e.organizer = auth.uid()
+    )
+  )
+);

@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface Message {
   id: string;
-  content: string;
+  body: string;
   user_id: string;
   created_at: string;
   profile?: {
@@ -22,9 +22,10 @@ interface Message {
 interface TribeChatProps {
   tribeId: string;
   isMember: boolean;
+  onJoinClick?: () => void;
 }
 
-export function TribeChat({ tribeId, isMember }: TribeChatProps) {
+export function TribeChat({ tribeId, isMember, onJoinClick }: TribeChatProps) {
   const { user, isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -53,7 +54,7 @@ export function TribeChat({ tribeId, isMember }: TribeChatProps) {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `tribe_id=eq.${tribeId}`,
+          filter: `channel=eq.tribe:${tribeId}`,
         },
         async (payload) => {
           // Fetch the profile for the new message
@@ -87,11 +88,11 @@ export function TribeChat({ tribeId, isMember }: TribeChatProps) {
       .from('messages')
       .select(`
         id,
-        content,
+        body,
         user_id,
         created_at
       `)
-      .eq('tribe_id', tribeId)
+      .eq('channel', `tribe:${tribeId}`)
       .order('created_at', { ascending: true })
       .limit(100);
 
@@ -121,9 +122,9 @@ export function TribeChat({ tribeId, isMember }: TribeChatProps) {
 
     setIsSending(true);
     const { error } = await supabase.from('messages').insert({
-      tribe_id: tribeId,
+      channel: `tribe:${tribeId}`,
       user_id: user.id,
-      content: newMessage.trim(),
+      body: newMessage.trim(),
     });
 
     if (!error) {
@@ -142,8 +143,15 @@ export function TribeChat({ tribeId, isMember }: TribeChatProps) {
 
   if (!isMember) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Join this tribe to participate in the chat</p>
+      <div className="flex items-center justify-center h-[500px] text-center">
+        <div>
+          <p className="text-muted-foreground mb-4">Join this tribe to participate in the chat</p>
+          {onJoinClick && (
+            <Button onClick={onJoinClick} variant="hero">
+              Join Tribe
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -199,7 +207,7 @@ export function TribeChat({ tribeId, isMember }: TribeChatProps) {
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">
-                        {message.content}
+                        {message.body}
                       </p>
                     </div>
                   </div>
