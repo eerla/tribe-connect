@@ -4,14 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 type Stats = { tribes: number; members: number; eventsPerMonth: number };
 
 async function fetchStats(): Promise<Stats> {
+  const now = new Date().toISOString();
+  const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  
   const [tribes, members, events] = await Promise.all([
     supabase.from('tribes').select('id', { count: 'exact', head: true }),
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
     supabase
       .from('events')
       .select('id', { count: 'exact', head: true })
-      .gte('starts_at', new Date().toISOString())
-      .lt('starts_at', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+      .gte('starts_at', now)
+      .lt('starts_at', thirtyDaysFromNow)
       .eq('is_cancelled', false),
   ]);
 
