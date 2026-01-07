@@ -11,6 +11,7 @@ import { categories } from '@/data/categories';
 import { useState } from 'react';
 import { useTribes } from '@/hooks/useTribes';
 import { useEvents } from '@/hooks/useEvents';
+import { useStats } from '@/hooks/useStats';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -29,6 +30,14 @@ export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const { tribes } = useTribes();
   const { events } = useEvents();
+  const { data: stats } = useStats();
+
+  const fmt = (n?: number) => {
+    if (typeof n !== 'number') return null;
+    if (n >= 1_000_000) return `${Math.floor(n / 1_000_000)}M+`;
+    if (n >= 1_000) return `${Math.floor(n / 1_000)}K+`;
+    return `${n}`;
+  };
 
   const featuredTribes = tribes?.slice(0, 3) || [];
   const upcomingEvents = events?.slice(0, 3) || [];
@@ -50,7 +59,7 @@ export default function Index() {
             <motion.div variants={itemVariants} className="mb-6">
               <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
                 <Sparkles className="h-4 w-4" />
-                Join 50,000+ community members
+                {stats?.members ? `Join ${fmt(stats.members)} community members` : 'Join 50K+ community members'}
               </span>
             </motion.div>
 
@@ -98,15 +107,15 @@ export default function Index() {
               className="flex flex-wrap justify-center gap-8 text-center"
             >
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">15K+</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.tribes) ?? '15K+'}</p>
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">50K+</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.members) ?? '50K+'}</p>
                 <p className="text-sm text-muted-foreground">Members</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">8K+</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.eventsPerMonth) ?? '8K+'}</p>
                 <p className="text-sm text-muted-foreground">Events/Month</p>
               </div>
             </motion.div>

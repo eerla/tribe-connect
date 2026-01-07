@@ -406,3 +406,12 @@ for insert with check (
       and e.is_cancelled = true
   )
 );
+
+
+DROP POLICY IF EXISTS "profiles_select_authenticated" ON "public"."profiles";
+
+CREATE POLICY "profiles_select_public"
+ON "public"."profiles"
+FOR SELECT
+TO public
+USING (true);
