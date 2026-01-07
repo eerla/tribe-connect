@@ -9,6 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { APP_CONFIG } from '@/config/constants';
 
 const faqs = [
   {
@@ -116,14 +117,21 @@ export default function Help() {
             Our support team is here to assist you
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="outline" className="gap-2">
-              <Mail className="h-4 w-4" />
-              Email Support
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              asChild
+            >
+              <a href={`mailto:${APP_CONFIG.supportEmail}?subject=TribeVibe Support Request`}>
+                <Mail className="h-4 w-4" />
+                Email Support
+              </a>
             </Button>
-            <Button variant="outline" className="gap-2">
+            {/* Live Chat - Coming Soon */}
+            {/* <Button variant="outline" className="gap-2">
               <MessageCircle className="h-4 w-4" />
               Live Chat
-            </Button>
+            </Button> */}
           </div>
         </motion.div>
       </div>
