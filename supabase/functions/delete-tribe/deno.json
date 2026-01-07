@@ -1,7 +1,0 @@
-{
-  "tasks": {},
-  "compilerOptions": {
-    "lib": ["deno.ns", "dom", "esnext"],
-    "jsx": "react-jsx"
-  }
-}

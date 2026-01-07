@@ -33,20 +33,10 @@ import { useUserTribes } from '@/hooks/useTribes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import useShare from '@/hooks/useShare';
+import type { Database } from '@/integrations/supabase/types';
 
-interface Tribe {
-  id: string;
-  owner: string;
-  title: string;
-  slug?: string;
-  description?: string | null;
-  cover_url?: string | null;
-  city?: string | null;
-  is_private?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  [key: string]: any;
-}
+type Tribe = Database['public']['Tables']['tribes']['Row'];
+type Event = Database['public']['Tables']['events']['Row'];
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -78,87 +68,75 @@ export default function GroupDetail() {
   const handleDeleteTribe = async () => {
     if (!tribe?.id) return;
     setIsDeleting(true);
+    
     try {
-      // 1) Try normal session retrieval
+      // Get user session token
       const { data } = await supabase.auth.getSession();
-      let token = (data as any)?.session?.access_token || null;
-
-      // 2) Fallback: scan local/session storage for common Supabase session keys
-      if (!token) {
-        const keys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
-        for (const k of keys) {
-          try {
-            const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
-            if (!raw) continue;
-            const parsed = JSON.parse(raw);
-            token = parsed?.access_token || parsed?.currentSession?.access_token || parsed?.persistedSession?.access_token || parsed?.provider_token || null;
-            if (token) { console.log('token found in storage key', k); break; }
-            // fallback raw token-looking value
-            if (!token && typeof raw === 'string' && raw.length > 50) {
-              token = raw;
-              console.log('token-like raw value in key', k);
-              break;
-            }
-          } catch (e) { /* ignore parse errors */ }
-        }
-      }
-
-      // Debug: show token presence (do not paste token anywhere)
-      console.log('delete-tribe token present?', Boolean(token));
+      const token = data?.session?.access_token;
 
       if (!token) {
-        toast({ title: 'Not signed in', description: 'No valid session token found. Sign in and try again.', variant: 'destructive' });
+        toast({ 
+          title: 'Not signed in', 
+          description: 'Please sign in to delete tribes', 
+          variant: 'destructive' 
+        });
+        setIsDeleting(false);
         return;
       }
 
-      // Optionally call the server-side Edge Function to enqueue storage-deletion jobs.
-      // The function should use the service role key to write `deletion_jobs` safely.
-      // const deleteFnUrl = import.meta.env.VITE_DELETE_TRIBE_FUNCTION_URL || import.meta.env.VITE_SUPABASE_FUNCTION_DELETE_TRIBE || '';
-      // if (deleteFnUrl) {
-      //   try {
-      //     const resp = await fetch(deleteFnUrl, {
-      //       method: 'POST',
-      //       headers: {
-      //         'Content-Type': 'application/json',
-      //         Authorization: `Bearer ${token}`,
-      //       },
-      //       body: JSON.stringify({ tribeId: tribe.id })
-      //     });
-      //     if (!resp.ok) {
-      //       const text = await resp.text().catch(() => '');
-      //       console.warn('delete-tribe function returned non-ok', resp.status, text);
-      //       toast({ title: 'Warning', description: 'Storage cleanup could not be enqueued (function error).', variant: 'warning' });
-      //     } else {
-      //       toast({ title: 'Storage cleanup queued', description: 'Storage deletion jobs were enqueued for this tribe.', variant: 'default' });
-      //     }
-      //   } catch (fnErr) {
-      //     console.warn('Failed to call delete-tribe function', fnErr);
-      //     toast({ title: 'Warning', description: 'Failed to contact storage cleanup function.', variant: 'warning' });
-      //   }
-      // }
+      // Call Edge Function to delete tribe and its storage files directly
+      const deleteFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-tribe-with-storage`;
+      
+      console.log('🗑️ Calling delete-tribe-with-storage Edge Function:', deleteFnUrl);
+      
+      try {
+        const resp = await fetch(deleteFnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tribeId: tribe.id })
+        });
 
-      // Delete tribe row via Supabase.
-      const { error: delError } = await supabase
-        .from('tribes')
-        .delete()
-        .eq('id', tribe.id);
-
-      if (delError) {
-        throw delError;
+        if (!resp.ok) {
+          const text = await resp.text();
+          console.error('❌ Delete failed:', resp.status, text);
+          toast({ 
+            title: 'Delete failed', 
+            description: 'Failed to delete tribe. Please try again.', 
+            variant: 'destructive' 
+          });
+        } else {
+          const result = await resp.json();
+          console.log('✅ Tribe deleted:', result);
+          toast({ 
+            title: 'Tribe deleted', 
+            description: `Tribe and ${result.filesDeleted} storage files removed`,
+          });
+          
+          if (typeof refetchUserTribes === 'function') {
+            try { await refetchUserTribes(); } catch {}
+          }
+          
+          navigate('/groups');
+        }
+      } catch (fnErr) {
+        console.error('❌ Edge Function error:', fnErr);
+        toast({ 
+          title: 'Delete failed', 
+          description: 'Failed to delete tribe', 
+          variant: 'destructive' 
+        });
       }
-      // TODO: Storage files were not removed.
-      toast({ title: 'Tribe deleted', description: 'The tribe was deleted.', variant: 'default' });
-      if (typeof refetchUserTribes === 'function') {
-        try { await refetchUserTribes(); } catch {}
-      }
-      navigate('/groups');
+      
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        toast({ title: 'Timeout', description: 'Delete operation timed out', variant: 'destructive' });
-      } else {
-        console.error('Error deleting tribe:', err);
-        toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
-      }
+      console.error('Error deleting tribe:', err);
+      toast({ 
+        title: 'Error', 
+        description: err?.message || 'Failed to delete tribe', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
@@ -207,10 +185,10 @@ export default function GroupDetail() {
           .select('*')
           .eq('tribe_id', tribe.id)
           .eq('is_cancelled', false)
-          .order('starts_at', { ascending: true });
+          .order('starts_at', { ascending: true }) as { data: Event[] | null; error: any };
 
         if (error) throw error;
-        setTribeEvents((data as any[]) || []);
+        setTribeEvents(data || []);
       } catch (error) {
         console.error('Error fetching tribe events:', error);
       }
