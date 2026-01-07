@@ -68,66 +68,63 @@ export default function GroupDetail() {
   const handleDeleteTribe = async () => {
     if (!tribe?.id) return;
     setIsDeleting(true);
+    
     try {
-      // 1) Try normal session retrieval
+      // Get user session token
       const { data } = await supabase.auth.getSession();
-      let token = (data as any)?.session?.access_token || null;
-
-      // 2) Fallback: scan local/session storage for common Supabase session keys
-      if (!token) {
-        const keys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
-        for (const k of keys) {
-          try {
-            const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
-            if (!raw) continue;
-            const parsed = JSON.parse(raw);
-            token = parsed?.access_token || parsed?.currentSession?.access_token || parsed?.persistedSession?.access_token || parsed?.provider_token || null;
-            if (token) { console.log('token found in storage key', k); break; }
-            // fallback raw token-looking value
-            if (!token && typeof raw === 'string' && raw.length > 50) {
-              token = raw;
-              console.log('token-like raw value in key', k);
-              break;
-            }
-          } catch (e) { /* ignore parse errors */ }
-        }
-      }
-
-      // Debug: show token presence (do not paste token anywhere)
-      console.log('delete-tribe token present?', Boolean(token));
+      const token = data?.session?.access_token;
 
       if (!token) {
-        toast({ title: 'Not signed in', description: 'No valid session token found. Sign in and try again.', variant: 'destructive' });
+        toast({ 
+          title: 'Not signed in', 
+          description: 'Please sign in to delete tribes', 
+          variant: 'destructive' 
+        });
+        setIsDeleting(false);
         return;
       }
 
-      // Optionally call the server-side Edge Function to enqueue storage-deletion jobs.
-      // The function should use the service role key to write `deletion_jobs` safely.
-      // const deleteFnUrl = import.meta.env.VITE_DELETE_TRIBE_FUNCTION_URL || import.meta.env.VITE_SUPABASE_FUNCTION_DELETE_TRIBE || '';
-      // if (deleteFnUrl) {
-      //   try {
-      //     const resp = await fetch(deleteFnUrl, {
-      //       method: 'POST',
-      //       headers: {
-      //         'Content-Type': 'application/json',
-      //         Authorization: `Bearer ${token}`,
-      //       },
-      //       body: JSON.stringify({ tribeId: tribe.id })
-      //     });
-      //     if (!resp.ok) {
-      //       const text = await resp.text().catch(() => '');
-      //       console.warn('delete-tribe function returned non-ok', resp.status, text);
-      //       toast({ title: 'Warning', description: 'Storage cleanup could not be enqueued (function error).', variant: 'warning' });
-      //     } else {
-      //       toast({ title: 'Storage cleanup queued', description: 'Storage deletion jobs were enqueued for this tribe.', variant: 'default' });
-      //     }
-      //   } catch (fnErr) {
-      //     console.warn('Failed to call delete-tribe function', fnErr);
-      //     toast({ title: 'Warning', description: 'Failed to contact storage cleanup function.', variant: 'warning' });
-      //   }
-      // }
+      // 1) Call Edge Function to enqueue storage deletion jobs
+      const deleteFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-tribe`;
+      
+      console.log('📞 Calling delete-tribe Edge Function:', deleteFnUrl);
+      
+      try {
+        const resp = await fetch(deleteFnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tribeId: tribe.id })
+        });
 
-      // Delete tribe row via Supabase.
+        if (!resp.ok) {
+          const text = await resp.text();
+          console.warn('⚠️ Edge Function failed:', resp.status, text);
+          toast({ 
+            title: 'Storage cleanup warning', 
+            description: 'Images may not be deleted from storage. Tribe will still be removed.', 
+            variant: 'default' 
+          });
+        } else {
+          const result = await resp.json();
+          console.log('✅ Edge Function success:', result);
+          toast({ 
+            title: 'Storage cleanup queued', 
+            description: `${result.inserted || 0} storage files queued for deletion`,
+          });
+        }
+      } catch (fnErr) {
+        console.error('❌ Edge Function error:', fnErr);
+        toast({ 
+          title: 'Storage cleanup failed', 
+          description: 'Images may not be deleted. Tribe will still be removed.', 
+          variant: 'default' 
+        });
+      }
+
+      // 2) Delete tribe row (cascade deletes will handle related records)
       const { error: delError } = await supabase
         .from('tribes')
         .delete()
@@ -136,19 +133,25 @@ export default function GroupDetail() {
       if (delError) {
         throw delError;
       }
-      // TODO: Storage files were not removed.
-      toast({ title: 'Tribe deleted', description: 'The tribe was deleted.', variant: 'default' });
+
+      toast({ 
+        title: 'Tribe deleted', 
+        description: 'The tribe and all its data have been removed',
+      });
+      
       if (typeof refetchUserTribes === 'function') {
         try { await refetchUserTribes(); } catch {}
       }
+      
       navigate('/groups');
+      
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        toast({ title: 'Timeout', description: 'Delete operation timed out', variant: 'destructive' });
-      } else {
-        console.error('Error deleting tribe:', err);
-        toast({ title: 'Error', description: err?.message || 'Failed to delete tribe', variant: 'destructive' });
-      }
+      console.error('Error deleting tribe:', err);
+      toast({ 
+        title: 'Error', 
+        description: err?.message || 'Failed to delete tribe', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);

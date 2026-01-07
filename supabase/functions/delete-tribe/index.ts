@@ -3,27 +3,26 @@
 // POST { tribeId, dryRun?: boolean }
 // Auth: Authorization: Bearer <user_access_token>
 // Requires env: SUPABASE_URL, SUPABASE_SERVICE_KEY
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const getEnv = () => {
-  // support Deno runtime env
+const getEnvVar = (key: string): string | undefined => {
+  // support Deno runtime env; Deno exposes .env.get()
   // @ts-ignore
   const deno = typeof Deno !== 'undefined' ? Deno : undefined;
-  const env = deno ? deno.env : process.env;
-  return env || {};
+  if (deno?.env?.get) return deno.env.get(key) ?? undefined;
+  if (typeof process !== 'undefined' && process.env) return process.env[key];
+  return undefined;
 };
 
-const env = getEnv();
-const SUPABASE_URL = env.SUPABASE_URL;
-// Prefer `SUPABASE_SERVICE_KEY`; fall back to legacy `SUPABASE_SERVICE_ROLE_KEY`.
-const SERVICE_KEY = env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = getEnvVar('SUPABASE_URL');
+// Prefer custom SERVICE_ROLE_KEY (no SUPABASE_ prefix), then fall back to hosted SUPABASE_SERVICE_ROLE_KEY.
+const SERVICE_KEY =
+  getEnvVar('SERVICE_ROLE_KEY') ||
+  getEnvVar('SUPABASE_SERVICE_KEY') ||
+  getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, x-dev-bypass, x-debug-quick',
-};
-
-const json = (obj: any, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+const json = (obj: any, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 
 const parsePublicUrl = (url: string | null) => {
   if (!url) return null;
@@ -43,13 +42,24 @@ const parsePublicUrl = (url: string | null) => {
   }
 };
 
-export default async function (req: Request) {
+serve(async (req: Request) => {
   const handlerStart = Date.now();
-  console.log('delete-tribe: handler start', { method: req.method, url: req.url, ts: handlerStart });
+  console.log('delete-tribe: handler start', { 
+    method: req.method, 
+    url: req.url, 
+    ts: handlerStart,
+    env_status: {
+      has_SUPABASE_URL: Boolean(SUPABASE_URL),
+      has_SERVICE_ROLE_KEY: Boolean(getEnvVar('SERVICE_ROLE_KEY')),
+      has_SUPABASE_SERVICE_KEY: Boolean(getEnvVar('SUPABASE_SERVICE_KEY')),
+      has_SUPABASE_SERVICE_ROLE_KEY: Boolean(getEnvVar('SUPABASE_SERVICE_ROLE_KEY')),
+      resolved_SERVICE_KEY: Boolean(SERVICE_KEY),
+    }
+  });
 
   if (req.method === 'OPTIONS') {
     console.log('delete-tribe: OPTIONS short-circuit', { elapsed_ms: Date.now() - handlerStart });
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== 'POST') {
     console.log('delete-tribe: method not allowed', { method: req.method });
@@ -102,6 +112,7 @@ export default async function (req: Request) {
   try {
     // Dev bypass: accept access token '88888' or header/param for local testing only.
     // If used, skip auth validation and treat the caller as the tribe owner (so owner-only flows work in dev).
+    console.log('delete-tribe: final dev bypass check', { accessToken });
     if (accessToken === '88888') isDevBypass = true;
 
     let tribeRow: any = null;
@@ -133,7 +144,10 @@ export default async function (req: Request) {
       const userFetchStart = Date.now();
       const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { 
+          Authorization: `Bearer ${accessToken}`,
+          apikey: SERVICE_KEY,
+        },
       });
       console.log('delete-tribe: /auth/v1/user response', { status: userResp.status, elapsed_ms: Date.now() - userFetchStart });
       if (!userResp.ok) {
@@ -210,7 +224,13 @@ export default async function (req: Request) {
     if (tribeRow.cover_url) {
       const parsed = parsePublicUrl(tribeRow.cover_url);
       if (parsed) {
-        jobs.push({ tribe_id: tribeId, event_id: null, bucket: parsed.bucket, object_path: parsed.objectPath, status: 'pending', created_by: userId });
+        jobs.push({ 
+          tribe_id: tribeId,
+          bucket: parsed.bucket, 
+          object_path: parsed.objectPath, 
+          status: 'pending',
+          created_by: userId 
+        });
       }
     }
 
@@ -219,7 +239,14 @@ export default async function (req: Request) {
       if (ev.banner_url) {
         const parsed = parsePublicUrl(ev.banner_url);
         if (parsed) {
-          jobs.push({ tribe_id: tribeId, event_id: ev.id || null, bucket: parsed.bucket, object_path: parsed.objectPath, status: 'pending', created_by: userId });
+          jobs.push({ 
+            tribe_id: tribeId,
+            event_id: ev.id,
+            bucket: parsed.bucket, 
+            object_path: parsed.objectPath, 
+            status: 'pending',
+            created_by: userId 
+          });
         }
       }
     }
@@ -268,4 +295,4 @@ export default async function (req: Request) {
     console.error('delete-tribe error', err, { elapsed_ms: Date.now() - handlerStart });
     return json({ error: err?.message || 'Server error' }, 500);
   }
-}
+});
