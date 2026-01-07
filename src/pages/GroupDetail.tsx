@@ -87,7 +87,7 @@ export default function GroupDetail() {
       // Call Edge Function to delete tribe and its storage files directly
       const deleteFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-tribe-with-storage`;
       
-      console.log('🗑️ Calling delete-tribe-with-storage Edge Function:', deleteFnUrl);
+      // console.log('🗑️ Calling delete-tribe-with-storage Edge Function:', deleteFnUrl);
       
       try {
         const resp = await fetch(deleteFnUrl, {
@@ -101,7 +101,7 @@ export default function GroupDetail() {
 
         if (!resp.ok) {
           const text = await resp.text();
-          console.error('❌ Delete failed:', resp.status, text);
+          // console.error('❌ Delete failed:', resp.status, text);
           toast({ 
             title: 'Delete failed', 
             description: 'Failed to delete tribe. Please try again.', 
@@ -112,7 +112,7 @@ export default function GroupDetail() {
           console.log('✅ Tribe deleted:', result);
           toast({ 
             title: 'Tribe deleted', 
-            description: `Tribe and ${result.filesDeleted} storage files removed`,
+            description: `Tribe and related events are removed permanently.`,
           });
           
           if (typeof refetchUserTribes === 'function') {

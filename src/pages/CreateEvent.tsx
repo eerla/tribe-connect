@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Users, Image, ArrowLeft, Loader2, X } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Image, ArrowLeft, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,14 @@ export default function CreateEvent() {
   const [price, setPrice] = useState('0');
   const [bannerImage, setBannerImage] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  
+  // Location verification state
+  const [locationStatus, setLocationStatus] = useState<{
+    verified: boolean;
+    coords: { lat: number; lng: number } | null;
+    message: string;
+    isVerifying: boolean;
+  }>({ verified: false, coords: null, message: '', isVerifying: false });
 
   // Derived constraints for date/time pickers
   const todayDate = new Date().toISOString().split('T')[0];
@@ -73,6 +81,50 @@ export default function CreateEvent() {
         setBannerPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  /**
+   * Handles location verification button click
+   * Validates and geocodes the location, showing immediate feedback to the user
+   */
+  const handleVerifyLocation = async () => {
+    if (!location || location.trim().length < 3) {
+      toast({
+        title: 'Location too short',
+        description: 'Please enter at least 3 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLocationStatus({ ...locationStatus, isVerifying: true });
+
+    const coords = await geocodeLocation(location);
+    
+    if (coords.lat && coords.lng) {
+      setLocationStatus({
+        verified: true,
+        coords,
+        message: `✓ Location verified: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+        isVerifying: false,
+      });
+      toast({
+        title: '✓ Location found',
+        description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+      });
+    } else {
+      setLocationStatus({
+        verified: false,
+        coords: null,
+        message: '⚠ Location not found. Try a more specific address like "San Francisco, CA"',
+        isVerifying: false,
+      });
+      toast({
+        title: '⚠️ Location not found',
+        description: 'Please try a more specific address (e.g., "San Francisco, CA")',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -244,23 +296,27 @@ export default function CreateEvent() {
       // ============================================
       // GEOCODING: Get latitude and longitude
       // ============================================
-      // Call the geocode edge function to convert location string to coordinates
-      // This happens BEFORE inserting the event so we can include lat/lng in the initial insert
-      // If geocoding fails, we still create the event with null coordinates (backward compatible)
+      // Use verified coordinates if available; otherwise geocode once before insert
       let latitude: number | null = null;
       let longitude: number | null = null;
 
-      if (locationString && locationString.trim() !== '') {
-        const coordinates = await geocodeLocation(locationString);
-        latitude = coordinates.lat;
-        longitude = coordinates.lng;
+      if (!isOnline && locationString && locationString.trim() !== '') {
+        if (locationStatus.verified && locationStatus.coords) {
+          // console.log(`Using previously verified coordinates for location: ${locationString}`);
+          latitude = locationStatus.coords.lat;
+          longitude = locationStatus.coords.lng;
+        } else {
+          const coordinates = await geocodeLocation(locationString);
+          latitude = coordinates.lat;
+          longitude = coordinates.lng;
+        }
 
         // Optional: Log geocoding result (can be removed in production)
-        if (latitude && longitude) {
-          console.log(`Geocoded "${locationString}" to: ${latitude}, ${longitude}`);
-        } else {
-          console.log(`Geocoding failed or returned null for: "${locationString}"`);
-        }
+        // if (latitude && longitude) {
+        //   console.log(`Geocoded "${locationString}" to: ${latitude}, ${longitude}`);
+        // } else {
+        //   console.log(`Geocoding failed or returned null for: "${locationString}"`);
+        // }
       }
       // ============================================
 
@@ -546,12 +602,57 @@ export default function CreateEvent() {
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input 
-                      id="location" 
-                      placeholder="e.g., 123 Main Street, San Francisco, CA"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <Input 
+                          id="location" 
+                          placeholder="e.g., San Francisco, CA"
+                          value={location}
+                          onChange={(e) => {
+                            setLocation(e.target.value);
+                            // Reset verification status when user types
+                            if (locationStatus.verified) {
+                              setLocationStatus({ verified: false, coords: null, message: '', isVerifying: false });
+                            }
+                          }}
+                        />
+                        {locationStatus.verified && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleVerifyLocation}
+                        disabled={!location || location.trim().length < 3 || locationStatus.isVerifying}
+                      >
+                        {locationStatus.isVerifying ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Verifying
+                          </>
+                        ) : (
+                          'Verify Location'
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Examples: "San Francisco, CA" • "Mumbai, India" • "123 Main St, Boston, MA"
+                    </p>
+                    {locationStatus.message && (
+                      <div className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+                        locationStatus.verified 
+                          ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                      }`}>
+                        {locationStatus.verified ? (
+                          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        )}
+                        <span>{locationStatus.message}</span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
