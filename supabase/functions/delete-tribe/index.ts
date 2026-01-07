@@ -3,7 +3,7 @@
 // POST { tribeId, dryRun?: boolean }
 // Auth: Authorization: Bearer <user_access_token>
 // Requires env: SUPABASE_URL, SUPABASE_SERVICE_KEY
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; // supabase edege functions support Deno std library
 import { corsHeaders } from "../_shared/cors.ts";
 
 const getEnvVar = (key: string): string | undefined => {

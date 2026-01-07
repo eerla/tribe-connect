@@ -84,10 +84,10 @@ export default function GroupDetail() {
         return;
       }
 
-      // 1) Call Edge Function to enqueue storage deletion jobs
-      const deleteFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-tribe`;
+      // Call Edge Function to delete tribe and its storage files directly
+      const deleteFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-tribe-with-storage`;
       
-      console.log('📞 Calling delete-tribe Edge Function:', deleteFnUrl);
+      console.log('🗑️ Calling delete-tribe-with-storage Edge Function:', deleteFnUrl);
       
       try {
         const resp = await fetch(deleteFnUrl, {
@@ -101,49 +101,34 @@ export default function GroupDetail() {
 
         if (!resp.ok) {
           const text = await resp.text();
-          console.warn('⚠️ Edge Function failed:', resp.status, text);
+          console.error('❌ Delete failed:', resp.status, text);
           toast({ 
-            title: 'Storage cleanup warning', 
-            description: 'Images may not be deleted from storage. Tribe will still be removed.', 
-            variant: 'default' 
+            title: 'Delete failed', 
+            description: 'Failed to delete tribe. Please try again.', 
+            variant: 'destructive' 
           });
         } else {
           const result = await resp.json();
-          console.log('✅ Edge Function success:', result);
+          console.log('✅ Tribe deleted:', result);
           toast({ 
-            title: 'Storage cleanup queued', 
-            description: `${result.inserted || 0} storage files queued for deletion`,
+            title: 'Tribe deleted', 
+            description: `Tribe and ${result.filesDeleted} storage files removed`,
           });
+          
+          if (typeof refetchUserTribes === 'function') {
+            try { await refetchUserTribes(); } catch {}
+          }
+          
+          navigate('/groups');
         }
       } catch (fnErr) {
         console.error('❌ Edge Function error:', fnErr);
         toast({ 
-          title: 'Storage cleanup failed', 
-          description: 'Images may not be deleted. Tribe will still be removed.', 
-          variant: 'default' 
+          title: 'Delete failed', 
+          description: 'Failed to delete tribe', 
+          variant: 'destructive' 
         });
       }
-
-      // 2) Delete tribe row (cascade deletes will handle related records)
-      const { error: delError } = await supabase
-        .from('tribes')
-        .delete()
-        .eq('id', tribe.id);
-
-      if (delError) {
-        throw delError;
-      }
-
-      toast({ 
-        title: 'Tribe deleted', 
-        description: 'The tribe and all its data have been removed',
-      });
-      
-      if (typeof refetchUserTribes === 'function') {
-        try { await refetchUserTribes(); } catch {}
-      }
-      
-      navigate('/groups');
       
     } catch (err: any) {
       console.error('Error deleting tribe:', err);
