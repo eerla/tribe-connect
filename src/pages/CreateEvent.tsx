@@ -280,9 +280,6 @@ export default function CreateEvent() {
 
       const startsAt = startDateTime.toISOString();
 
-      // Create slug from title
-      const slug = title.toLowerCase().replace(/\s+/g, '-');
-
       // Determine category: explicit selection wins (unless "inherit"), otherwise inherit from tribe if provided
       let eventCategory: string | null = (selectedCategory && selectedCategory !== 'inherit') ? selectedCategory : null;
       if (!eventCategory && selectedTribeId) {
@@ -343,7 +340,6 @@ export default function CreateEvent() {
           tribe_id: selectedTribeId || null,
           category: eventCategory,
           title,
-          slug,
           description,
           location: locationString,
           latitude,  // Geocoded latitude (or null)

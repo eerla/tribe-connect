@@ -88,12 +88,15 @@ export type Database = {
           description: string | null
           ends_at: string | null
           id: string
+          is_cancelled: boolean | null
+          is_deleted: boolean | null
           is_online: boolean | null
           is_recurring: boolean | null
           location: string | null
           max_attendees: number | null
           organizer: string
           recurrence_rule: string | null
+          slug: string
           starts_at: string
           title: string
           tribe_id: string | null
@@ -108,12 +111,15 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
+          is_cancelled?: boolean | null
+          is_deleted?: boolean | null
           is_online?: boolean | null
           is_recurring?: boolean | null
           location?: string | null
           max_attendees?: number | null
           organizer: string
           recurrence_rule?: string | null
+          slug: string
           starts_at: string
           title: string
           tribe_id?: string | null
@@ -128,12 +134,15 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           id?: string
+          is_cancelled?: boolean | null
+          is_deleted?: boolean | null
           is_online?: boolean | null
           is_recurring?: boolean | null
           location?: string | null
           max_attendees?: number | null
           organizer?: string
           recurrence_rule?: string | null
+          slug?: string
           starts_at?: string
           title?: string
           tribe_id?: string | null
@@ -247,6 +256,33 @@ export type Database = {
         }
         Relationships: []
       }
+      slug_history: {
+        Row: {
+          changed_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          new_slug: string
+          old_slug: string
+        }
+        Insert: {
+          changed_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          new_slug: string
+          old_slug: string
+        }
+        Update: {
+          changed_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          new_slug?: string
+          old_slug?: string
+        }
+        Relationships: []
+      }
       tribe_members: {
         Row: {
           id: string
@@ -287,6 +323,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_deleted: boolean | null
           is_private: boolean | null
           member_count: number | null
           owner: string
@@ -301,6 +338,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_deleted?: boolean | null
           is_private?: boolean | null
           member_count?: number | null
           owner: string
@@ -315,6 +353,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_deleted?: boolean | null
           is_private?: boolean | null
           member_count?: number | null
           owner?: string

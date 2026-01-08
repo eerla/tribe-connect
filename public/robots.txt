@@ -12,3 +12,8 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /settings
+Disallow: /messages
+Disallow: /notifications
+
+Sitemap: https://tribe-connect-two.vercel.app/sitemap.xml

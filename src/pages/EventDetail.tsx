@@ -34,6 +34,8 @@ import useShare from '@/hooks/useShare';
 import { format } from 'date-fns';
 import useSavedEvents from '@/hooks/useSavedEvents';
 import { EventComments } from '@/components/event/EventComments';
+import { SEO } from '@/components/common/SEO';
+
 
 interface Event {
   id: string;
@@ -53,6 +55,7 @@ interface Event {
   is_cancelled?: boolean;
   created_at?: string;
   updated_at?: string;
+  is_deleted?: boolean;
   [key: string]: any;
 }
 
@@ -86,13 +89,56 @@ export default function EventDetail() {
       if (!id) return;
       
       try {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // Try to fetch by ID first (UUID)
+        let data = null;
+        let error = null;
+        
+        // Check if id is a UUID format
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        
+        if (isUUID) {
+          const result = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', id)
+            .single();
+          data = result.data;
+          error = result.error;
+        } else {
+          // Try to fetch by slug
+          const result = await supabase
+            .from('events')
+            .select('*')
+            .eq('slug', id)
+            .single();
+          data = result.data;
+          error = result.error;
+          
+          // If not found, check slug_history for redirects
+          if (error || !data) {
+            const { data: historyData } = await supabase
+              .from('slug_history')
+              .select('entity_id, new_slug')
+              .eq('entity_type', 'event')
+              .eq('old_slug', id)
+              .single();
+            
+            if (historyData?.new_slug) {
+              // Redirect to new slug
+              navigate(`/events/${historyData.new_slug}`, { replace: true });
+              return;
+            }
+          }
+        }
 
         if (error) throw error;
+        
+        // If fetched by UUID and has a slug, redirect to slug URL
+        if (data && isUUID && data.slug) {
+          navigate(`/events/${data.slug}`, { replace: true });
+          return;
+        }
+        
         setEvent(data);
         try {
           const saved = await checkSaved(data.id);
@@ -106,7 +152,7 @@ export default function EventDetail() {
     };
 
     fetchEvent();
-  }, [id]);
+  }, [id, navigate]);
 
   const handleSaveToggle = async () => {
     if (!event || !event.id) return;
@@ -176,6 +222,7 @@ export default function EventDetail() {
   const startDate = new Date(event.starts_at);
   const endDate = event.ends_at ? new Date(event.ends_at) : null;
   const isFull = event.capacity ? event.capacity <= 0 : false;
+  const eventDateLabel = format(startDate, 'MMM d, yyyy h:mm a');
   
   // Check if current user is the organizer
   const isOrganizer = user?.id === event.organizer;
@@ -340,7 +387,15 @@ export default function EventDetail() {
   
 
   return (
-    <Layout>
+    <>
+      <SEO
+        title={event.title}
+        description={event.description || `Join ${event.title} on ${eventDateLabel}`}
+        image={event.banner_url || undefined}
+        url={`/events/${event.slug || event.id}`}
+        type="article"
+      />
+      <Layout>
       {/* Hero Image */}
       <div className="relative h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
         {event.banner_url ? (
@@ -568,6 +623,7 @@ export default function EventDetail() {
           </motion.div>
         </section>
       )}
-    </Layout>
+      </Layout>
+      </>
   );
 }
