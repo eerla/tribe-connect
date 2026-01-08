@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Compass, Navigation, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
@@ -108,11 +109,24 @@ export default function Explore() {
           <h2 className="text-2xl font-heading font-bold mb-6">
             Tribes Near You
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {nearbyTribes.map((tribe, index) => (
-              <TribeCard key={tribe.id} tribe={tribe} index={index} />
-            ))}
-          </div>
+          {nearbyTribes.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {nearbyTribes.map((tribe, index) => (
+                <TribeCard key={tribe.id} tribe={tribe} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-muted/30 rounded-2xl">
+              <Compass className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No tribes found nearby</h3>
+              <p className="text-muted-foreground mb-6">
+                Try browsing all tribes or create your own
+              </p>
+              <Button asChild variant="outline">
+                <Link to="/groups">Browse All Tribes</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -122,11 +136,24 @@ export default function Explore() {
           <h2 className="text-2xl font-heading font-bold mb-6">
             Events Happening Soon
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {nearbyEvents.map((event, index) => (
-              <EventCard key={event.id} event={event} index={index} />
-            ))}
-          </div>
+          {nearbyEvents.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {nearbyEvents.map((event, index) => (
+                <EventCard key={event.id} event={event} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card rounded-2xl border border-border">
+              <Navigation className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No events found nearby</h3>
+              <p className="text-muted-foreground mb-6">
+                Check out all upcoming events or create your own
+              </p>
+              <Button asChild variant="outline">
+                <Link to="/events">Browse All Events</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

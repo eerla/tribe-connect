@@ -25,6 +25,7 @@ export function useTribes() {
       const { data, error } = await supabase
         .from('tribes')
         .select('*')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -63,7 +64,8 @@ export function useUserTribes(userId: string | undefined) {
       const { data: createdData, error: createdError } = await supabase
         .from('tribes')
         .select('*')
-        .eq('owner', userId);
+        .eq('owner', userId)
+        .eq('is_deleted', false);
 
       if (createdError) throw createdError;
       setCreatedTribes(createdData || []);
@@ -82,7 +84,8 @@ export function useUserTribes(userId: string | undefined) {
         const { data: joinedData, error: joinedError } = await supabase
           .from('tribes')
           .select('*')
-          .in('id', joinedTribeIds);
+          .in('id', joinedTribeIds)
+          .eq('is_deleted', false);
 
         if (joinedError) throw joinedError;
         setJoinedTribes(joinedData || []);

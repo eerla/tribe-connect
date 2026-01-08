@@ -115,10 +115,17 @@ export default function Groups() {
             ))}
           </div>
         ) : filteredTribes.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">No tribes found {selectedCategory !== 'all' && `in ${selectedCategory}`}</p>
+          <div className="text-center py-16">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              No tribes found
+              {selectedCategory !== 'all' && ` in ${selectedCategory}`}
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              Try adjusting your filters or create your own tribe
+            </p>
             <Button asChild>
-              <Link to="/groups/create">Create the first one!</Link>
+              <Link to="/groups/create">Create Tribe</Link>
             </Button>
           </div>
         ) : (
