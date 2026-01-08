@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Users } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
