@@ -117,15 +117,11 @@ export default function CreateGroup() {
     setIsLoading(true);
     
     try {
-      // Create slug from title
-      const slug = title.toLowerCase().replace(/\s+/g, '-');
-      
       const { data, error } = await supabase
         .from('tribes')
         .insert({
           owner: user.id,
           title,
-          slug,
           description,
           city: location,
           is_private: isPrivate,

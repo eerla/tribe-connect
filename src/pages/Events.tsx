@@ -24,7 +24,11 @@ export default function Events() {
   const { events, isLoading } = useEvents();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Read ?q= from URL and initialize search
+  const queryFromUrl = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery] = useState(queryFromUrl);
+  
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);

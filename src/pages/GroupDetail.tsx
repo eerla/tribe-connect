@@ -34,6 +34,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import useShare from '@/hooks/useShare';
 import type { Database } from '@/integrations/supabase/types';
+import { SEO } from '@/components/common/SEO';
 
 type Tribe = Database['public']['Tables']['tribes']['Row'];
 type Event = Database['public']['Tables']['events']['Row'];
@@ -148,14 +149,58 @@ export default function GroupDetail() {
       if (!id) return;
       
       try {
-        const { data, error } = await supabase
-          .from('tribes')
-          .select('*')
-          .eq('id', id)
-          .eq('is_deleted', false)
-          .single();
+        // Try to fetch by ID first (UUID)
+        let data = null;
+        let error = null;
+        
+        // Check if id is a UUID format
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        
+        if (isUUID) {
+          const result = await supabase
+            .from('tribes')
+            .select('*')
+            .eq('id', id)
+            .eq('is_deleted', false)
+            .single();
+          data = result.data;
+          error = result.error;
+        } else {
+          // Try to fetch by slug
+          const result = await supabase
+            .from('tribes')
+            .select('*')
+            .eq('slug', id)
+            .eq('is_deleted', false)
+            .single();
+          data = result.data;
+          error = result.error;
+          
+          // If not found, check slug_history for redirects
+          if (error || !data) {
+            const { data: historyData } = await supabase
+              .from('slug_history')
+              .select('entity_id, new_slug')
+              .eq('entity_type', 'tribe')
+              .eq('old_slug', id)
+              .single();
+            
+            if (historyData?.new_slug) {
+              // Redirect to new slug
+              navigate(`/groups/${historyData.new_slug}`, { replace: true });
+              return;
+            }
+          }
+        }
 
         if (error) throw error;
+        
+        // If fetched by UUID and has a slug, redirect to slug URL
+        if (data && isUUID && data.slug) {
+          navigate(`/groups/${data.slug}`, { replace: true });
+          return;
+        }
+        
         setTribe(data);
       } catch (error) {
         console.error('Error fetching tribe:', error);
@@ -165,7 +210,7 @@ export default function GroupDetail() {
     };
 
     fetchTribe();
-  }, [id]);
+  }, [id, navigate]);
 
   // Sync tab selection from URL (?tab=chat|events|members)
   useEffect(() => {
@@ -384,8 +429,19 @@ export default function GroupDetail() {
     );
   }
 
+  const tribeDescription = tribe.description || 'Join this tribe on TribeVibe.';
+  const tribeUrl = `/groups/${tribe.slug || tribe.id}`;
+
   return (
-    <Layout>
+    <>
+      <SEO
+        title={tribe.title}
+        description={tribeDescription}
+        image={tribe.cover_url || undefined}
+        url={tribeUrl}
+        type="article"
+      />
+      <Layout>
       {/* Hero Image */}
       <div className="relative h-[35vh] md:h-[45vh] overflow-hidden bg-muted">
         {tribe.cover_url ? (
@@ -638,5 +694,6 @@ export default function GroupDetail() {
         </Tabs>
       </div>
     </Layout>
+    </>
   );
 }

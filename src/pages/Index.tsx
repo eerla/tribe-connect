@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTribes } from '@/hooks/useTribes';
 import { useEvents } from '@/hooks/useEvents';
 import { useStats } from '@/hooks/useStats';
+import { SEO } from '@/components/common/SEO';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -44,6 +45,13 @@ export default function Index() {
 
   return (
     <Layout>
+      <SEO
+        title="Find Your Tribe"
+        description="TribeVibe helps you discover local tribes, join real-time chats, and RSVP to nearby events—all in one place."
+        image="/og-image.png"
+        url="/"
+        type="website"
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[var(--gradient-hero)]" />

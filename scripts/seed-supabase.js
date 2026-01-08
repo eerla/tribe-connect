@@ -116,7 +116,6 @@ async function seedDatabase() {
     const tribesWithOwner = mockTribes.map(tribe => ({
       ...tribe,
       owner: userId,
-      slug: tribe.title.toLowerCase().replace(/\s+/g, '-'),
     }));
 
     const { data: tribesData, error: tribesError } = await supabase
@@ -135,7 +134,6 @@ async function seedDatabase() {
     const eventsWithOrganizer = mockEvents.map(event => ({
       ...event,
       organizer: userId,
-      slug: event.title.toLowerCase().replace(/\s+/g, '-'),
     }));
 
     const { data: eventsData, error: eventsError } = await supabase
