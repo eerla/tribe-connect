@@ -2,14 +2,14 @@
 // Deletes a tribe and its storage files (cover_url + event banner_urls) directly
 // POST { tribeId }
 // Auth: Authorization: Bearer <user_access_token>
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; // deno edge function runtime
 import { corsHeaders } from "../_shared/cors.ts";
 
 const getEnvVar = (key: string): string | undefined => {
   // @ts-ignore
   const deno = typeof Deno !== 'undefined' ? Deno : undefined;
   if (deno?.env?.get) return deno.env.get(key) ?? undefined;
-  if (typeof process !== 'undefined' && process.env) return process.env[key];
+  // if (typeof process !== 'undefined' && process.env) return process.env[key]; // uncomment if using process.env in local dev
   return undefined;
 };
 
