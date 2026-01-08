@@ -191,23 +191,45 @@ serve(async (req: Request) => {
       console.log('delete-tribe-with-storage: storage files deleted', { count: deletedCount, elapsed_ms: Date.now() - handlerStart });
     }
 
-    // 6) Delete the tribe (CASCADE will handle tribe_members, events, event_attendees, event_comments)
-    console.log('delete-tribe-with-storage: deleting tribe', { tribeId, elapsed_ms: Date.now() - handlerStart });
-    const deleteResp = await fetch(`${SUPABASE_URL}/rest/v1/tribes?id=eq.${tribeId}`, {
-      method: 'DELETE',
+    // 6) Soft delete: Set tribe is_deleted = true and events is_cancelled = true
+    console.log('delete-tribe-with-storage: soft deleting tribe and events', { tribeId, eventsCount: events?.length || 0, elapsed_ms: Date.now() - handlerStart });
+    
+    // Update tribe: set is_deleted = true
+    const tribeUpdateResp = await fetch(`${SUPABASE_URL}/rest/v1/tribes?id=eq.${tribeId}`, {
+      method: 'PATCH',
       headers: {
         apikey: SERVICE_KEY,
         Authorization: `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ is_deleted: true }),
     });
 
-    if (!deleteResp.ok) {
-      const text = await deleteResp.text();
-      console.error('delete-tribe-with-storage: tribe deletion failed', { status: deleteResp.status, body: text });
-      throw new Error(`Failed to delete tribe: ${text}`);
+    if (!tribeUpdateResp.ok) {
+      const text = await tribeUpdateResp.text();
+      console.error('delete-tribe-with-storage: tribe update failed', { status: tribeUpdateResp.status, body: text });
+      throw new Error(`Failed to update tribe: ${text}`);
     }
 
-    console.log('delete-tribe-with-storage: completed successfully', { tribeId, elapsed_ms: Date.now() - handlerStart });
+    // Update events: set is_cancelled = true for all tribe events
+    if (events && events.length > 0) {
+      const eventsUpdateResp = await fetch(`${SUPABASE_URL}/rest/v1/events?tribe_id=eq.${tribeId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_cancelled: true }),
+      });
+
+      if (!eventsUpdateResp.ok) {
+        const text = await eventsUpdateResp.text();
+        console.warn('delete-tribe-with-storage: events update failed (continuing)', { status: eventsUpdateResp.status, body: text });
+      }
+    }
+
+    console.log('delete-tribe-with-storage: completed successfully', { tribeId, filesDeleted: filesToDelete.length, eventsProcessed: events?.length || 0, elapsed_ms: Date.now() - handlerStart });
     return json({
       ok: true,
       tribeId,

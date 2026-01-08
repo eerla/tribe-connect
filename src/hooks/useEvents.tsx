@@ -35,6 +35,7 @@ export function useEvents() {
         .from('events')
         .select('*')
         .eq('is_cancelled', false)
+        .eq('is_deleted', false)
         .order('starts_at', { ascending: true });
       const data = resp.data as Event[] | null;
       const error = resp.error;
@@ -72,6 +73,7 @@ export function useEventById(eventId: string) {
           .from('events')
           .select('*')
           .eq('id', eventId)
+          .eq('is_deleted', false)
           .single();
 
         if (error) throw error;

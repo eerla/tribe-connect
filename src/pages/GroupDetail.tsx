@@ -152,6 +152,7 @@ export default function GroupDetail() {
           .from('tribes')
           .select('*')
           .eq('id', id)
+          .eq('is_deleted', false)
           .single();
 
         if (error) throw error;
@@ -185,6 +186,7 @@ export default function GroupDetail() {
           .select('*')
           .eq('tribe_id', tribe.id)
           .eq('is_cancelled', false)
+          .eq('is_deleted', false)
           .order('starts_at', { ascending: true }) as { data: Event[] | null; error: any };
 
         if (error) throw error;
@@ -588,24 +590,34 @@ export default function GroupDetail() {
                 </h3>
               </div>
               
-              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {members.map((user) => (
-                  <Link
-                    key={user.id}
-                    to={`/profile/${user.id}`}
-                    className="flex items-center gap-3 p-4 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={user.avatar_url} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-sm text-muted-foreground">{user.location}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              {members.length > 0 ? (
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {members.map((user) => (
+                    <Link
+                      key={user.id}
+                      to={`/profile/${user.id}`}
+                      className="flex items-center gap-3 p-4 rounded-xl hover:bg-muted transition-colors"
+                    >
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={user.avatar_url} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-sm text-muted-foreground">{user.location}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No members yet</h3>
+                  <p className="text-muted-foreground">
+                    Be the first to join this tribe
+                  </p>
+                </div>
+              )}
             </motion.div>
           </TabsContent>
 

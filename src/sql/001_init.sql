@@ -415,3 +415,10 @@ ON "public"."profiles"
 FOR SELECT
 TO public
 USING (true);
+
+
+-- Add is_deleted column to tribes table
+ALTER TABLE tribes ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+
+-- Add is_deleted column to events table (for consistency, though you're using is_cancelled)
+ALTER TABLE events ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
