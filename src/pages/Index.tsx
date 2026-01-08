@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Search, Users, Calendar, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Users, Calendar, MapPin, ArrowRight, Sparkles, MessageCircle, Zap, Globe } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,6 +123,78 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Why TribeVibe Section */}
+      <section className="py-16">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-2xl md:text-3xl font-heading font-bold mb-2">
+              Why Choose TribeVibe?
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Built for real human connection. Everything you need to find your people and build lasting communities.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Card 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0 }}
+              className="rounded-2xl bg-card border border-border p-8 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <MapPin className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Find Locally</h3>
+              <p className="text-muted-foreground">
+                Discover communities and events happening in your neighborhood. Connect with people who are actually near you, not across the globe.
+              </p>
+            </motion.div>
+
+            {/* Card 2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="rounded-2xl bg-card border border-border p-8 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center mb-4">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Chat Built-In</h3>
+              <p className="text-muted-foreground">
+                Real-time messaging with your community. No app switching, no friction. Chat, plan, and connect all in one place.
+              </p>
+            </motion.div>
+
+            {/* Card 3 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="rounded-2xl bg-card border border-border p-8 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-amber-100/20 text-amber-600 flex items-center justify-center mb-4">
+                <Zap className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Always Free</h3>
+              <p className="text-muted-foreground">
+                Zero fees. No membership charges. No event costs. Create tribes, organize events, and build your community without paying a cent.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Categories Section */}
       <section className="py-16 bg-muted/30">
         <div className="container">
@@ -160,6 +232,100 @@ export default function Index() {
                 </Link>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-16 bg-muted/30">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-2xl md:text-3xl font-heading font-bold mb-2">
+              How It Works
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Getting started is simple. Three easy steps to find your community.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {/* Step 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-6 text-2xl font-bold font-heading">
+                1
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Find Your Interest</h3>
+              <p className="text-muted-foreground">
+                Browse by category or search for interests you care about. Discover tribes and events that match your passions.
+              </p>
+            </motion.div>
+
+            {/* Arrow */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="hidden md:flex items-center justify-center"
+            >
+              <ArrowRight className="h-6 w-6 text-muted-foreground" />
+            </motion.div>
+
+            {/* Step 2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-center md:col-start-2"
+            >
+              <div className="w-16 h-16 rounded-full bg-secondary/10 text-secondary flex items-center justify-center mx-auto mb-6 text-2xl font-bold font-heading">
+                2
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Join & Connect</h3>
+              <p className="text-muted-foreground">
+                Become a member and start connecting. Chat with people who share your interests, make new friends, and build relationships.
+              </p>
+            </motion.div>
+
+            {/* Arrow */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="hidden md:flex items-center justify-center"
+            >
+              <ArrowRight className="h-6 w-6 text-muted-foreground" />
+            </motion.div>
+
+            {/* Step 3 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-center md:col-start-3"
+            >
+              <div className="w-16 h-16 rounded-full bg-amber-100/20 text-amber-600 flex items-center justify-center mx-auto mb-6 text-2xl font-bold font-heading">
+                3
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Discover & RSVP</h3>
+              <p className="text-muted-foreground">
+                Find upcoming events organized by your community. RSVP, show up, and create unforgettable experiences together.
+              </p>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -226,6 +392,108 @@ export default function Index() {
             <Button variant="outline" asChild>
               <Link to="/events">View all events</Link>
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-16">
+        <div className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-2xl md:text-3xl font-heading font-bold mb-2">
+              What Members Say
+            </h2>
+            <p className="text-muted-foreground">
+              Real stories from people who found their community on TribeVibe
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Testimonial 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0 }}
+              className="rounded-2xl bg-card border border-border p-8"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-lg font-semibold">
+                  AJ
+                </div>
+                <div>
+                  <p className="font-semibold">Alex J.</p>
+                  <p className="text-sm text-muted-foreground">San Francisco, CA</p>
+                </div>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                "I moved to SF knowing nobody. Found a hiking tribe on TribeVibe, and now I have my closest friends. The app made it so easy!"
+              </p>
+              <div className="flex gap-1">
+                {'★★★★★'.split('').map((_, i) => (
+                  <span key={i} className="text-amber-400">★</span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Testimonial 2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="rounded-2xl bg-card border border-border p-8"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center text-lg font-semibold">
+                  MJ
+                </div>
+                <div>
+                  <p className="font-semibold">Maya J.</p>
+                  <p className="text-sm text-muted-foreground">Brooklyn, NY</p>
+                </div>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                "As an event organizer, TribeVibe saved me so much time. No more WhatsApp chaos. Everything is organized in one place!"
+              </p>
+              <div className="flex gap-1">
+                {'★★★★★'.split('').map((_, i) => (
+                  <span key={i} className="text-amber-400">★</span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Testimonial 3 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="rounded-2xl bg-card border border-border p-8"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100/20 text-amber-600 flex items-center justify-center text-lg font-semibold">
+                  RK
+                </div>
+                <div>
+                  <p className="font-semibold">Raj K.</p>
+                  <p className="text-sm text-muted-foreground">Austin, TX</p>
+                </div>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                "Found a tech startup group that led to my co-founder. TribeVibe isn't just an app—it's a community that changed my life!"
+              </p>
+              <div className="flex gap-1">
+                {'★★★★★'.split('').map((_, i) => (
+                  <span key={i} className="text-amber-400">★</span>
+                ))}
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
