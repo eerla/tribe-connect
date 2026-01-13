@@ -424,7 +424,9 @@ ALTER TABLE tribes ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE events ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
 
 -- ===
--- Function to generate a unique slug with numeric suffix if needed
+-- ============================================
+-- IMPROVED SLUG GENERATION WITH COLLISION HANDLING
+-- ============================================
 CREATE OR REPLACE FUNCTION public.generate_unique_slug(
   base_slug TEXT,
   table_name TEXT,
@@ -434,43 +436,39 @@ RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  slug TEXT;
+  tmp_slug TEXT;
   counter INTEGER := 1;
   exists_check BOOLEAN;
 BEGIN
-  -- Start with the base slug
-  slug := base_slug;
+  tmp_slug := base_slug;
   
-  -- Loop until we find a unique slug
   LOOP
-    -- Check if slug exists (excluding current record if updating)
     IF table_name = 'tribes' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.tribes 
-        WHERE tribes.slug = slug 
-        AND (record_id IS NULL OR tribes.id != record_id)
+        SELECT 1 FROM public.tribes t
+        WHERE t.slug = tmp_slug 
+        AND (record_id IS NULL OR t.id != record_id)
       ) INTO exists_check;
     ELSIF table_name = 'events' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.events 
-        WHERE events.slug = slug 
-        AND (record_id IS NULL OR events.id != record_id)
+        SELECT 1 FROM public.events e
+        WHERE e.slug = tmp_slug 
+        AND (record_id IS NULL OR e.id != record_id)
       ) INTO exists_check;
     ELSE
       RAISE EXCEPTION 'Unknown table: %', table_name;
     END IF;
     
-    -- If unique, return the slug
     IF NOT exists_check THEN
-      RETURN slug;
+      RETURN tmp_slug;
     END IF;
     
-    -- Otherwise, increment counter and try again
-    slug := base_slug || '-' || counter;
+    tmp_slug := base_slug || '-' || counter;
     counter := counter + 1;
   END LOOP;
 END;
 $$;
+
 
 -- Function to auto-generate slug for tribes
 CREATE OR REPLACE FUNCTION public.auto_generate_tribe_slug()

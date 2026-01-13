@@ -46,15 +46,15 @@ BEGIN
     -- Check if slug exists (excluding current record if updating)
     IF table_name = 'tribes' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.tribes 
-        WHERE tribes.slug = slug 
-        AND (record_id IS NULL OR tribes.id != record_id)
+        SELECT 1 FROM public.tribes t
+        WHERE t.slug = slug 
+        AND (record_id IS NULL OR t.id != record_id)
       ) INTO exists_check;
     ELSIF table_name = 'events' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.events 
-        WHERE events.slug = slug 
-        AND (record_id IS NULL OR events.id != record_id)
+        SELECT 1 FROM public.events e
+        WHERE e.slug = slug 
+        AND (record_id IS NULL OR e.id != record_id)
       ) INTO exists_check;
     ELSE
       RAISE EXCEPTION 'Unknown table: %', table_name;
