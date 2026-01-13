@@ -261,7 +261,7 @@ export default function Index() {
                 transition={{ delay: index * 0.05 }}
               >
                 <Link
-                  to={`/groups?category=${category.name}`}
+                  to={`/groups?category=${encodeURIComponent(category.name)}`}
                   className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
                 >
                   <div className={`p-3 rounded-xl bg-${category.color}/10 text-${category.color} group-hover:scale-110 transition-transform`}>
