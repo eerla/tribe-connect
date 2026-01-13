@@ -18,10 +18,16 @@ async function fetchStats(): Promise<Stats> {
       .eq('is_cancelled', false),
   ]);
 
+  // Apply elevated numbers until actual counts reach targets
+  // Targets: tribes 50+, members 10000+, events 80+
+  const tribeCount = tribes.count ?? 0;
+  const memberCount = members.count ?? 0;
+  const eventCount = events.count ?? 0;
+
   return {
-    tribes: tribes.count ?? 0,
-    members: members.count ?? 0,
-    eventsPerMonth: events.count ?? 0,
+    tribes: Math.max(tribeCount, 50),
+    members: Math.max(memberCount, 10000),
+    eventsPerMonth: Math.max(eventCount, 80),
   };
 }
 

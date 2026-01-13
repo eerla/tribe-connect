@@ -58,7 +58,7 @@ export default function Index() {
     if (typeof n !== 'number') return null;
     if (n >= 1_000_000) return `${Math.floor(n / 1_000_000)}M+`;
     if (n >= 1_000) return `${Math.floor(n / 1_000)}K+`;
-    return `${n}`;
+    return `${n}+`;
   };
 
   const featuredTribes = tribes?.slice(0, 3) || [];
@@ -146,16 +146,16 @@ export default function Index() {
               className="flex flex-wrap justify-center gap-8 text-center"
             >
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.tribes) ?? '15K+'}</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.tribes) ?? '50+'}</p>
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.members) ?? '50K+'}</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.members) ?? '10K+'}</p>
                 <p className="text-sm text-muted-foreground">Members</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.eventsPerMonth) ?? '8K+'}</p>
-                <p className="text-sm text-muted-foreground">Events/Month</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.eventsPerMonth) ?? '80+'}</p>
+                <p className="text-sm text-muted-foreground">Events This Month</p>
               </div>
             </motion.div>
           </motion.div>
