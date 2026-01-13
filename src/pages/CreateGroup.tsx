@@ -152,6 +152,12 @@ export default function CreateGroup() {
             user_id: user.id,
             role: 'owner',
           });
+        
+        // Mark user as non-new (completed onboarding)
+        await supabase
+          .from('profiles')
+          .update({ is_new_user: false })
+          .eq('id', user.id);
       }
 
       toast({

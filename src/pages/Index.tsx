@@ -8,10 +8,14 @@ import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
 import { CategoryIcon } from '@/components/common/CategoryIcon';
 import { categories } from '@/data/categories';
-import { useState } from 'react';
+import { OnboardingBadge } from '@/components/onboarding/OnboardingBadge';
+import { useState, useEffect } from 'react';
 import { useTribes } from '@/hooks/useTribes';
 import { useEvents } from '@/hooks/useEvents';
 import { useStats } from '@/hooks/useStats';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { SEO } from '@/components/common/SEO';
 
 const containerVariants = {
@@ -29,9 +33,26 @@ const itemVariants = {
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const { tribes } = useTribes();
   const { events } = useEvents();
   const { data: stats } = useStats();
+  const { user } = useAuth();
+
+  // Fetch new user status
+  const { data: profile } = useQuery({
+    queryKey: ['profile-new-user', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_new_user')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const fmt = (n?: number) => {
     if (typeof n !== 'number') return null;
@@ -52,6 +73,16 @@ export default function Index() {
         url="/"
         type="website"
       />
+      
+      {/* Show onboarding badge for new users */}
+      {showOnboarding && (
+        <div className="container pt-6">
+          <OnboardingBadge 
+            isNewUser={profile?.is_new_user} 
+            onDismiss={() => setShowOnboarding(false)}
+          />
+        </div>
+      )}
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[var(--gradient-hero)]" />
