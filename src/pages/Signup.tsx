@@ -24,6 +24,22 @@ export default function Signup() {
     }
   }, [isAuthenticated, navigate]);
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) {
+      return "Password must be at least 8 characters";
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[a-z]/.test(pwd)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return "Password must contain at least one number";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) {
@@ -35,10 +51,11 @@ export default function Signup() {
       return;
     }
 
-    if (password.length < 6) {
+    const validationError = validatePassword(password);
+    if (validationError) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters",
+        title: "Invalid password",
+        description: validationError,
         variant: "destructive",
       });
       return;
@@ -131,20 +148,22 @@ export default function Signup() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    className="pl-12 pr-12"
+                    className="pl-12 pr-12 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
+                  Must be at least 8 characters with uppercase, lowercase, and number
                 </p>
               </div>
 
