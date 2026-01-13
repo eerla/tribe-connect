@@ -196,7 +196,7 @@ export default function Index() {
               </div>
               <h3 className="text-lg font-semibold mb-2">Always Free</h3>
               <p className="text-muted-foreground">
-                Zero fees. No membership charges. No event costs. Create tribes, organize events, and build your community without paying a cent.
+                Zero fees. No membership charges. Create tribes, organize events, and build your community without paying a cent.
               </p>
             </motion.div>
           </div>
