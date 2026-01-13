@@ -8,10 +8,14 @@ import { TribeCard } from '@/components/cards/TribeCard';
 import { EventCard } from '@/components/cards/EventCard';
 import { CategoryIcon } from '@/components/common/CategoryIcon';
 import { categories } from '@/data/categories';
-import { useState } from 'react';
+import { OnboardingBadge } from '@/components/onboarding/OnboardingBadge';
+import { useState, useEffect } from 'react';
 import { useTribes } from '@/hooks/useTribes';
 import { useEvents } from '@/hooks/useEvents';
 import { useStats } from '@/hooks/useStats';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { SEO } from '@/components/common/SEO';
 
 const containerVariants = {
@@ -29,15 +33,32 @@ const itemVariants = {
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const { tribes } = useTribes();
   const { events } = useEvents();
   const { data: stats } = useStats();
+  const { user } = useAuth();
+
+  // Fetch new user status
+  const { data: profile } = useQuery({
+    queryKey: ['profile-new-user', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_new_user')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const fmt = (n?: number) => {
     if (typeof n !== 'number') return null;
     if (n >= 1_000_000) return `${Math.floor(n / 1_000_000)}M+`;
     if (n >= 1_000) return `${Math.floor(n / 1_000)}K+`;
-    return `${n}`;
+    return `${n}+`;
   };
 
   const featuredTribes = tribes?.slice(0, 3) || [];
@@ -52,6 +73,16 @@ export default function Index() {
         url="/"
         type="website"
       />
+      
+      {/* Show onboarding badge for new users */}
+      {showOnboarding && (
+        <div className="container pt-6">
+          <OnboardingBadge 
+            isNewUser={profile?.is_new_user} 
+            onDismiss={() => setShowOnboarding(false)}
+          />
+        </div>
+      )}
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[var(--gradient-hero)]" />
@@ -115,16 +146,16 @@ export default function Index() {
               className="flex flex-wrap justify-center gap-8 text-center"
             >
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.tribes) ?? '15K+'}</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.tribes) ?? '50+'}</p>
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.members) ?? '50K+'}</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.members) ?? '10K+'}</p>
                 <p className="text-sm text-muted-foreground">Members</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.eventsPerMonth) ?? '8K+'}</p>
-                <p className="text-sm text-muted-foreground">Events/Month</p>
+                <p className="text-2xl md:text-3xl font-bold font-heading gradient-text">{fmt(stats?.eventsPerMonth) ?? '80+'}</p>
+                <p className="text-sm text-muted-foreground">Events This Month</p>
               </div>
             </motion.div>
           </motion.div>
@@ -196,7 +227,7 @@ export default function Index() {
               </div>
               <h3 className="text-lg font-semibold mb-2">Always Free</h3>
               <p className="text-muted-foreground">
-                Zero fees. No membership charges. No event costs. Create tribes, organize events, and build your community without paying a cent.
+                Zero fees. No membership charges. Create tribes, organize events, and build your community without paying a cent.
               </p>
             </motion.div>
           </div>

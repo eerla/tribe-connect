@@ -212,14 +212,16 @@ export default function ResetPassword() {
                       placeholder="Enter new password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10"
+                      className="pl-10 pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                       disabled={isLoading}
                       autoFocus
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                      tabIndex={-1}
                     >
                       {showPassword ? (
                         <EyeOff className="h-5 w-5" />
@@ -243,13 +245,15 @@ export default function ResetPassword() {
                       placeholder="Confirm new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10 pr-10"
+                      className="pl-10 pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                       disabled={isLoading}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                      tabIndex={-1}
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="h-5 w-5" />
