@@ -4,17 +4,20 @@
 -- Drop existing triggers and functions
 DROP TRIGGER IF EXISTS events_set_slug ON public.events;
 DROP TRIGGER IF EXISTS tribes_set_slug ON public.tribes;
+DROP TRIGGER IF EXISTS tribe_slug_trigger ON public.tribes;
+DROP TRIGGER IF EXISTS event_slug_trigger ON public.events;
+DROP TRIGGER IF EXISTS tribe_slug_history_trigger ON public.tribes;
+DROP TRIGGER IF EXISTS event_slug_history_trigger ON public.events;
 DROP FUNCTION IF EXISTS public.set_slug_if_missing();
 DROP FUNCTION IF EXISTS public.generate_slug(TEXT, UUID);
-
--- Keep existing constraints (they're already in place)
--- ALTER TABLE events DROP CONSTRAINT IF EXISTS events_slug_unique;
--- ALTER TABLE tribes DROP CONSTRAINT IF EXISTS tribes_slug_unique;
+DROP FUNCTION IF EXISTS public.generate_unique_slug(TEXT, TEXT, UUID);
+DROP FUNCTION IF EXISTS public.auto_generate_tribe_slug();
+DROP FUNCTION IF EXISTS public.auto_generate_event_slug();
+DROP FUNCTION IF EXISTS public.track_slug_change();
 
 -- ============================================
 -- ADD MISSING COLUMNS
 -- ============================================
--- Add is_cancelled and is_deleted to events if not exists
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='is_cancelled') THEN
@@ -31,7 +34,6 @@ END $$;
 -- ============================================
 -- IMPROVED SLUG GENERATION WITH COLLISION HANDLING
 -- ============================================
--- Function to generate a unique slug with numeric suffix if needed
 CREATE OR REPLACE FUNCTION public.generate_unique_slug(
   base_slug TEXT,
   table_name TEXT,
@@ -41,39 +43,34 @@ RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  slug TEXT;
+  tmp_slug TEXT;
   counter INTEGER := 1;
   exists_check BOOLEAN;
 BEGIN
-  -- Start with the base slug
-  slug := base_slug;
+  tmp_slug := base_slug;
   
-  -- Loop until we find a unique slug
   LOOP
-    -- Check if slug exists (excluding current record if updating)
     IF table_name = 'tribes' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.tribes 
-        WHERE tribes.slug = slug 
-        AND (record_id IS NULL OR tribes.id != record_id)
+        SELECT 1 FROM public.tribes t
+        WHERE t.slug = tmp_slug 
+        AND (record_id IS NULL OR t.id != record_id)
       ) INTO exists_check;
     ELSIF table_name = 'events' THEN
       SELECT EXISTS(
-        SELECT 1 FROM public.events 
-        WHERE events.slug = slug 
-        AND (record_id IS NULL OR events.id != record_id)
+        SELECT 1 FROM public.events e
+        WHERE e.slug = tmp_slug 
+        AND (record_id IS NULL OR e.id != record_id)
       ) INTO exists_check;
     ELSE
       RAISE EXCEPTION 'Unknown table: %', table_name;
     END IF;
     
-    -- If unique, return the slug
     IF NOT exists_check THEN
-      RETURN slug;
+      RETURN tmp_slug;
     END IF;
     
-    -- Otherwise, increment counter and try again
-    slug := base_slug || '-' || counter;
+    tmp_slug := base_slug || '-' || counter;
     counter := counter + 1;
   END LOOP;
 END;
@@ -87,19 +84,13 @@ AS $$
 DECLARE
   base_slug TEXT;
 BEGIN
-  -- Only generate if slug is NULL or empty
   IF NEW.slug IS NULL OR TRIM(NEW.slug) = '' THEN
-    -- Create base slug from title
     base_slug := LOWER(REGEXP_REPLACE(TRIM(NEW.title), '[^a-z0-9]+', '-', 'gi'));
     base_slug := REGEXP_REPLACE(base_slug, '^-+|-+$', '', 'g');
-    
-    -- Generate unique slug
     NEW.slug := public.generate_unique_slug(base_slug, 'tribes', NEW.id);
   ELSE
-    -- Ensure provided slug is unique
     NEW.slug := public.generate_unique_slug(NEW.slug, 'tribes', NEW.id);
   END IF;
-  
   RETURN NEW;
 END;
 $$;
@@ -112,19 +103,13 @@ AS $$
 DECLARE
   base_slug TEXT;
 BEGIN
-  -- Only generate if slug is NULL or empty
   IF NEW.slug IS NULL OR TRIM(NEW.slug) = '' THEN
-    -- Create base slug from title
     base_slug := LOWER(REGEXP_REPLACE(TRIM(NEW.title), '[^a-z0-9]+', '-', 'gi'));
     base_slug := REGEXP_REPLACE(base_slug, '^-+|-+$', '', 'g');
-    
-    -- Generate unique slug
     NEW.slug := public.generate_unique_slug(base_slug, 'events', NEW.id);
   ELSE
-    -- Ensure provided slug is unique
     NEW.slug := public.generate_unique_slug(NEW.slug, 'events', NEW.id);
   END IF;
-  
   RETURN NEW;
 END;
 $$;
@@ -145,7 +130,6 @@ CREATE TRIGGER event_slug_trigger
 -- ============================================
 -- SLUG HISTORY FOR 301 REDIRECTS
 -- ============================================
--- Create slug_history table for 301 redirects
 CREATE TABLE IF NOT EXISTS public.slug_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   entity_type TEXT NOT NULL CHECK (entity_type IN ('tribe', 'event')),
@@ -164,7 +148,6 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Only track if slug actually changed
   IF OLD.slug IS DISTINCT FROM NEW.slug THEN
     INSERT INTO public.slug_history (entity_type, entity_id, old_slug, new_slug)
     VALUES (
@@ -179,7 +162,6 @@ BEGIN
     ON CONFLICT (entity_type, old_slug) DO UPDATE
     SET new_slug = EXCLUDED.new_slug, changed_at = now();
   END IF;
-  
   RETURN NEW;
 END;
 $$;

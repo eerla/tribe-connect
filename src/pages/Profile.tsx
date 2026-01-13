@@ -199,7 +199,14 @@ export default function Profile() {
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     Created by Me ({createdTribes.length})
                   </h3>
-                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.createdTribes ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center gap-2">
+                    {isOwnProfile && (
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <Link to="/groups/create">+ Create</Link>
+                      </Button>
+                    )}
+                    <ChevronDown className={`h-5 w-5 transition-transform ${openSections.createdTribes ? 'rotate-180' : ''}`} />
+                  </div>
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -218,13 +225,6 @@ export default function Profile() {
                     <p className="text-muted-foreground">
                       {isOwnProfile ? "You haven't created any tribes yet" : `${displayName} hasn't created any tribes yet`}
                     </p>
-                    {isOwnProfile && (
-                      <div className="mt-4">
-                        <Button asChild size="sm">
-                          <Link to="/groups/create">Create Tribe</Link>
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 )}
               </CollapsibleContent>
@@ -292,7 +292,14 @@ export default function Profile() {
                   <h3 className="text-lg font-semibold group-hover:text-primary">
                     Organized by Me ({organizedEvents.length})
                   </h3>
-                  <ChevronDown className={`h-5 w-5 transition-transform ${openSections.organizedEvents ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center gap-2">
+                    {isOwnProfile && (
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <Link to="/events/create">+ Create</Link>
+                      </Button>
+                    )}
+                    <ChevronDown className={`h-5 w-5 transition-transform ${openSections.organizedEvents ? 'rotate-180' : ''}`} />
+                  </div>
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>

@@ -97,7 +97,11 @@ const isValidGeocodeResult = (result: NominatimResult, originalInput: string): b
     
     // If the input is substantial, check if display_name contains some of it
     if (originalInput.length > 5) {
-      const inputWords = inputLower.split(/\s+/).filter(w => w.length > 2);
+      // Extract meaningful words: length > 2, exclude pure numbers (e.g., "305", "06074")
+      const inputWords = inputLower
+        .split(/[,\s]+/)
+        .filter(w => w.length > 2 && !/^\d+$/.test(w));
+      
       const hasMatchingWord = inputWords.some(word => displayLower.includes(word));
       
       if (!hasMatchingWord && inputWords.length > 0) {
@@ -110,7 +114,7 @@ const isValidGeocodeResult = (result: NominatimResult, originalInput: string): b
   return true;
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
