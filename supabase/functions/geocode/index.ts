@@ -97,10 +97,11 @@ const isValidGeocodeResult = (result: NominatimResult, originalInput: string): b
     
     // If the input is substantial, check if display_name contains some of it
     if (originalInput.length > 5) {
-      // Extract meaningful words: length > 2, exclude pure numbers (e.g., "305", "06074")
+      // Extract meaningful words: length > 2, keep all including numbers
+      // This allows full addresses with street numbers and zip codes
       const inputWords = inputLower
         .split(/[,\s]+/)
-        .filter(w => w.length > 2 && !/^\d+$/.test(w));
+        .filter(w => w.length > 2);
       
       const hasMatchingWord = inputWords.some(word => displayLower.includes(word));
       
