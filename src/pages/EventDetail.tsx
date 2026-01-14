@@ -521,15 +521,28 @@ export default function EventDetail() {
 
                 {/* Cancel Event Button - Only visible to organizer before event starts */}
                 {canCancel && (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => setShowCancelDialog(true)}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel Event
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full"
+                      asChild
+                    >
+                      <Link to={`/events/${event.slug || event.id}/edit`}>
+                        Edit Event
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => setShowCancelDialog(true)}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel Event
+                    </Button>
+                  </>
                 )}
 
                 <div className="flex gap-2">
