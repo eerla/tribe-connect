@@ -9,13 +9,7 @@ import {
   MessageCircle,
   ArrowLeft,
   Lock,
-  Loader2,
-  Settings,
-  UserPlus,
-  UserMinus,
-  Plus,
-  Edit,
-  Trash2
+  Loader2
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -32,13 +26,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { TribeChat } from '@/components/chat/TribeChat';
 import { EventCard } from '@/components/cards/EventCard';
 import { useAuth } from '@/hooks/useAuth';
@@ -520,79 +507,45 @@ export default function GroupDetail() {
               </p>
             </div>
 
-            {/* Actions Dropdown Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-10 w-10 rounded-full hover:bg-accent"
-                >
-                  <Settings className="h-5 w-5" />
-                  <span className="sr-only">Tribe actions</span>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {isMember ? (
+                <Button variant="destructive" size="lg" onClick={handleLeave}>
+                  Leave Tribe</Button>
+              ) : (
+                <Button variant="hero" size="lg" onClick={handleJoin}>
+                  Join Tribe</Button>
+              )}
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => share({ title: tribe?.title, text: tribe?.description, url: window.location.href })}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+              {user?.id === tribe.owner && (
+                <>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="ml-2"
+                  >
+                    Delete Tribe
+                  </Button>
+                </>
+              )}
+              {user?.id === tribe.owner && (
+                <Button asChild size="lg" className="ml-2">
+                  <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {/* Join/Leave Tribe */}
-                {isMember ? (
-                  <DropdownMenuItem onClick={handleLeave}>
-                    <UserMinus className="mr-2 h-4 w-4" />
-                    Leave Tribe
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleJoin}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Join Tribe
-                  </DropdownMenuItem>
-                )}
-
-                {/* Share */}
-                <DropdownMenuItem 
-                  onClick={() => share({ 
-                    title: tribe?.title, 
-                    text: tribe?.description, 
-                    url: window.location.href 
-                  })}
-                >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </DropdownMenuItem>
-
-                {/* Owner-only actions */}
-                {user?.id === tribe.owner && (
-                  <>
-                    <DropdownMenuSeparator />
-                    
-                    {/* Create Event */}
-                    <DropdownMenuItem asChild>
-                      <Link to={`/events/create?tribe=${tribe.id}`} className="flex items-center">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Event
-                      </Link>
-                    </DropdownMenuItem>
-
-                    {/* Edit Tribe */}
-                    <DropdownMenuItem asChild>
-                      <Link to={`/groups/${tribe.slug || tribe.id}/edit`} className="flex items-center">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Tribe
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-
-                    {/* Delete Tribe */}
-                    <DropdownMenuItem 
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Tribe
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              )}
+              {user?.id === tribe.owner && (
+                <Button asChild variant="outline" size="lg" className="ml-2">
+                  <Link to={`/groups/${tribe.slug || tribe.id}/edit`}>Edit Tribe</Link>
+                </Button>
+              )}
+            </div>
           </div>
         </motion.div>
 
