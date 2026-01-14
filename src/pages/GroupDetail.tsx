@@ -521,78 +521,80 @@ export default function GroupDetail() {
             </div>
 
             {/* Actions Dropdown Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-10 w-10 rounded-full hover:bg-accent"
-                >
-                  <Settings className="h-5 w-5" />
-                  <span className="sr-only">Tribe actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {/* Join/Leave Tribe */}
-                {isMember ? (
-                  <DropdownMenuItem onClick={handleLeave}>
-                    <UserMinus className="mr-2 h-4 w-4" />
-                    Leave Tribe
+            <div className="self-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 rounded-full hover:bg-accent"
+                  >
+                    <Settings className="h-5 w-5" />
+                    <span className="sr-only">Tribe actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Join/Leave Tribe */}
+                  {isMember ? (
+                    <DropdownMenuItem onClick={handleLeave}>
+                      <UserMinus className="mr-2 h-4 w-4" />
+                      Leave Tribe
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={handleJoin}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Join Tribe
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Share */}
+                  <DropdownMenuItem 
+                    onClick={() => share({ 
+                      title: tribe?.title, 
+                      text: tribe?.description, 
+                      url: window.location.href 
+                    })}
+                  >
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
                   </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleJoin}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Join Tribe
-                  </DropdownMenuItem>
-                )}
 
-                {/* Share */}
-                <DropdownMenuItem 
-                  onClick={() => share({ 
-                    title: tribe?.title, 
-                    text: tribe?.description, 
-                    url: window.location.href 
-                  })}
-                >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </DropdownMenuItem>
+                  {/* Owner-only actions */}
+                  {user?.id === tribe.owner && (
+                    <>
+                      <DropdownMenuSeparator />
+                      
+                      {/* Create Event */}
+                      <DropdownMenuItem asChild>
+                        <Link to={`/events/create?tribe=${tribe.id}`} className="flex items-center">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Event
+                        </Link>
+                      </DropdownMenuItem>
 
-                {/* Owner-only actions */}
-                {user?.id === tribe.owner && (
-                  <>
-                    <DropdownMenuSeparator />
-                    
-                    {/* Create Event */}
-                    <DropdownMenuItem asChild>
-                      <Link to={`/events/create?tribe=${tribe.id}`} className="flex items-center">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Event
-                      </Link>
-                    </DropdownMenuItem>
+                      {/* Edit Tribe */}
+                      <DropdownMenuItem asChild>
+                        <Link to={`/groups/${tribe.slug || tribe.id}/edit`} className="flex items-center">
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Tribe
+                        </Link>
+                      </DropdownMenuItem>
 
-                    {/* Edit Tribe */}
-                    <DropdownMenuItem asChild>
-                      <Link to={`/groups/${tribe.slug || tribe.id}/edit`} className="flex items-center">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Tribe
-                      </Link>
-                    </DropdownMenuItem>
+                      <DropdownMenuSeparator />
 
-                    <DropdownMenuSeparator />
-
-                    {/* Delete Tribe */}
-                    <DropdownMenuItem 
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Tribe
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      {/* Delete Tribe */}
+                      <DropdownMenuItem 
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Tribe
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </motion.div>
 
