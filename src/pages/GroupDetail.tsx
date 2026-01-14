@@ -549,6 +549,11 @@ export default function GroupDetail() {
                   <Link to={`/events/create?tribe=${tribe.id}`}>Create Event</Link>
                 </Button>
               )}
+              {user?.id === tribe.owner && (
+                <Button asChild variant="outline" size="lg" className="ml-2">
+                  <Link to={`/groups/${tribe.slug || tribe.id}/edit`}>Edit Tribe</Link>
+                </Button>
+              )}
             </div>
           </div>
         </motion.div>
