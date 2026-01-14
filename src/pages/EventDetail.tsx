@@ -162,7 +162,7 @@ export default function EventDetail() {
 
   // Check if current user is attending
   useEffect(() => {
-    if (!id) return;
+    if (!event?.id) return;
 
     if (!user?.id) {
       setIsRSVPed(false);
@@ -174,27 +174,23 @@ export default function EventDetail() {
         const { data, error } = await supabase
           .from('event_attendees')
           .select('id')
-          .match({ event_id: id, user_id: user.id })
+          .match({ event_id: event.id, user_id: user.id }) // <-- FIX: use event.id
           .limit(1);
-
+  
         if (error) {
           setIsRSVPed(false);
           return;
         }
-
-        if (data && data.length > 0) {
-          setIsRSVPed(true);
-        } else {
-          setIsRSVPed(false);
-        }
+  
+        setIsRSVPed(Boolean(data && data.length > 0));
       } catch (err) {
         console.error('Error checking attendance:', err);
         setIsRSVPed(false);
       }
     };
-
+  
     checkAttendance();
-  }, [id, user?.id]);
+  }, [event?.id, user?.id]);
 
   if (isLoading) {
     return (
