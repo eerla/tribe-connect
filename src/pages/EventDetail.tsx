@@ -507,7 +507,7 @@ export default function EventDetail() {
               </div>
 
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <h3 className="font-heading mb-0">About this event</h3>
                   {!event.is_cancelled && attendeeCount > 0 && (
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
