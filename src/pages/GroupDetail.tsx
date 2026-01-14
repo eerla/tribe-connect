@@ -513,6 +513,11 @@ export default function GroupDetail() {
                     Created {new Date(tribe.created_at).toLocaleDateString()}
                   </span>
                 )}
+                {/* Member count */}
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-4 w-4" />
+                  {members.length} members
+                </span>
               </div>
 
               <p className="text-muted-foreground">
