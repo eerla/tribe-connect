@@ -604,3 +604,63 @@ END $$;
 
 -- Add is_new_user column to profiles table
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_new_user BOOLEAN DEFAULT true;
+
+
+-- edit events and tribes policies to allow owners to update
+-- ============================================
+-- ADD UPDATED_AT COLUMNS & EDIT RLS POLICIES
+-- ============================================
+-- ============================================
+-- RLS POLICY: Allow event organizer to update their own events
+-- ============================================
+DROP POLICY IF EXISTS "Users can update own events" ON public.events;
+
+CREATE POLICY "Users can update own events"
+  ON public.events
+  FOR UPDATE
+  USING (auth.uid() = organizer)
+  WITH CHECK (auth.uid() = organizer);
+
+-- ============================================
+-- RLS POLICY: Allow tribe owner to update their own tribes
+-- ============================================
+DROP POLICY IF EXISTS "Users can update own tribes" ON public.tribes;
+
+CREATE POLICY "Users can update own tribes"
+  ON public.tribes
+  FOR UPDATE
+  USING (auth.uid() = owner)
+  WITH CHECK (auth.uid() = owner);
+
+-- ============================================
+-- HELPER FUNCTION: Update updated_at timestamp
+-- ============================================
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END
+$$;
+
+-- ============================================
+-- TRIGGER: Automatically update updated_at on events
+-- ============================================
+DROP TRIGGER IF EXISTS update_events_updated_at ON public.events;
+
+CREATE TRIGGER update_events_updated_at
+  BEFORE UPDATE ON public.events
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ============================================
+-- TRIGGER: Automatically update updated_at on tribes
+-- ============================================
+DROP TRIGGER IF EXISTS update_tribes_updated_at ON public.tribes;
+
+CREATE TRIGGER update_tribes_updated_at
+  BEFORE UPDATE ON public.tribes
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
