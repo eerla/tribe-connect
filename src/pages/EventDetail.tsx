@@ -72,6 +72,7 @@ export default function EventDetail() {
   const { share } = useShare();
   const { checkSaved, toggleSave, savingIds } = useSavedEvents();
   const [isSaved, setIsSaved] = useState(false);
+  const [attendeeCount, setAttendeeCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -162,7 +163,7 @@ export default function EventDetail() {
 
   // Check if current user is attending
   useEffect(() => {
-    if (!id) return;
+    if (!event?.id) return;
 
     if (!user?.id) {
       setIsRSVPed(false);
@@ -174,27 +175,50 @@ export default function EventDetail() {
         const { data, error } = await supabase
           .from('event_attendees')
           .select('id')
-          .match({ event_id: id, user_id: user.id })
+          .match({ event_id: event.id, user_id: user.id }) // <-- FIX: use event.id
           .limit(1);
-
+  
         if (error) {
           setIsRSVPed(false);
           return;
         }
-
-        if (data && data.length > 0) {
-          setIsRSVPed(true);
-        } else {
-          setIsRSVPed(false);
-        }
+  
+        setIsRSVPed(Boolean(data && data.length > 0));
       } catch (err) {
         console.error('Error checking attendance:', err);
         setIsRSVPed(false);
       }
     };
-
+  
     checkAttendance();
-  }, [id, user?.id]);
+  }, [event?.id, user?.id]);
+
+  // Fetch attendee count
+  useEffect(() => {
+    if (!event?.id) return;
+
+    const fetchAttendeeCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('event_attendees')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', event.id);
+
+        if (error) {
+          console.error('Error fetching attendee count:', error);
+          setAttendeeCount(0);
+          return;
+        }
+
+        setAttendeeCount(count || 0);
+      } catch (err) {
+        console.error('Error fetching attendee count:', err);
+        setAttendeeCount(0);
+      }
+    };
+
+    fetchAttendeeCount();
+  }, [event?.id]);
 
   if (isLoading) {
     return (
@@ -269,6 +293,7 @@ export default function EventDetail() {
       }
 
       setIsRSVPed(true);
+      setAttendeeCount(prev => prev + 1);
       if (typeof refetchUserEvents === 'function') {
         try { await refetchUserEvents(); } catch {}
       }
@@ -316,6 +341,7 @@ export default function EventDetail() {
       if (error) throw error;
 
       setIsRSVPed(false);
+      setAttendeeCount(prev => Math.max(0, prev - 1));
       if (typeof refetchUserEvents === 'function') {
         try { await refetchUserEvents(); } catch {};
       }
@@ -481,7 +507,15 @@ export default function EventDetail() {
               </div>
 
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <h3 className="font-heading">About this event</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-heading mb-0">About this event</h3>
+                  {!event.is_cancelled && attendeeCount > 0 && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>{attendeeCount} attending</span>
+                    </div>
+                  )}
+                </div>
                 <p className="text-muted-foreground leading-relaxed">
                   {event.description || 'No description provided'}
                 </p>
