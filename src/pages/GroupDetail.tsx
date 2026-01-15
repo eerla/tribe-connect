@@ -346,13 +346,14 @@ export default function GroupDetail() {
       try {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, bio')
+          .select('id, full_name, username, avatar_url, bio')
           .in('id', [user.id]);
 
         if (profilesData && profilesData.length > 0) {
           setMembers(prev => [{
             id: profilesData[0].id,
             name: profilesData[0].full_name || 'You',
+            username: profilesData[0].username || profilesData[0].id,
             avatar_url: profilesData[0].avatar_url,
             location: profilesData[0].bio || 'Member'
           }, ...prev]);
