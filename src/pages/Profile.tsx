@@ -16,7 +16,7 @@ import { useUserEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import type { User } from '@supabase/supabase-js';
-import type { Profile as UserProfileType } from '@/hooks/useAuth';
+import type { Profile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
@@ -29,7 +29,7 @@ export default function Profile() {
     attendingEvents: true,
   });
 
-  const [viewedProfile, setViewedProfile] = useState<UserProfileType | null>(null);
+  const [viewedProfile, setViewedProfile] = useState<Profile | null>(null);
   const [viewedUserAuth, setViewedUserAuth] = useState<User | null>(null);
   const [isViewedProfileLoading, setIsViewedProfileLoading] = useState(true);
 
@@ -49,7 +49,7 @@ export default function Profile() {
   const displayAvatar = currentProfileToDisplay?.avatar_url || undefined;
   const displayBio = currentProfileToDisplay?.bio || null;
   const displayLocation = currentProfileToDisplay?.location || null;
-  const createdAt = currentUserAuthToDisplay?.created_at || new Date().toISOString();
+  const createdAt = currentProfileToDisplay?.created_at || new Date().toISOString();
   
   const { createdTribes, joinedTribes } = useUserTribes(id === 'me' ? currentUser?.id : id);
   const { organizedEvents, attendingEvents } = useUserEvents(id === 'me' ? currentUser?.id : id);
@@ -86,11 +86,11 @@ export default function Profile() {
           }
           setViewedProfile(fetchedProfile);
 
-          const { data: fetchedUserAuth, error: authError } = await supabase.auth.admin.getUserById(id);
-          if (authError) {
-            console.warn('Could not fetch auth user data for viewed profile:', authError.message);
-          }
-          setViewedUserAuth(fetchedUserAuth?.user || null);
+          // const { data: fetchedUserAuth, error: authError } = await supabase.auth.admin.getUserById(id);
+          // if (authError) {
+          //   console.warn('Could not fetch auth user data for viewed profile:', authError.message);
+          // }
+          // setViewedUserAuth(fetchedUserAuth?.user || null);
 
         } catch (error) {
           console.error('Error fetching viewed profile:', error);
