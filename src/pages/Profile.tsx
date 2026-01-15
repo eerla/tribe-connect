@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Settings, Edit, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, Users, Settings, Edit, ChevronDown, User as UserIcon, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,23 @@ import { useUserTribes } from '@/hooks/useTribes';
 import { useUserEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import type { User } from '@supabase/supabase-js';
+import type { Profile as UserProfileType } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
   const { id } = useParams();
-  const { user: currentUser, profile, isAuthenticated } = useAuth();
+  const { user: currentUser, profile, isAuthenticated, isLoading } = useAuth();
   const [openSections, setOpenSections] = useState({
     createdTribes: true,
     joinedTribes: true,
     organizedEvents: true,
     attendingEvents: true,
   });
+
+  const [viewedProfile, setViewedProfile] = useState<UserProfileType | null>(null);
+  const [viewedUserAuth, setViewedUserAuth] = useState<User | null>(null);
+  const [isViewedProfileLoading, setIsViewedProfileLoading] = useState(true);
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({
@@ -35,14 +42,17 @@ export default function Profile() {
   
   const isOwnProfile = id === 'me' || id === currentUser?.id;
   
-  const displayName = isOwnProfile ? (profile?.full_name || 'User') : 'User';
-  const displayAvatar = isOwnProfile ? profile?.avatar_url : null;
-  const displayBio = isOwnProfile ? profile?.bio : null;
-  const displayLocation = isOwnProfile ? profile?.location : null;
-  const createdAt = currentUser?.created_at || new Date().toISOString();
+  const currentProfileToDisplay = isOwnProfile ? profile : viewedProfile;
+  const currentUserAuthToDisplay = isOwnProfile ? currentUser : viewedUserAuth;
+
+  const displayName = currentProfileToDisplay?.full_name || 'User';
+  const displayAvatar = currentProfileToDisplay?.avatar_url || undefined;
+  const displayBio = currentProfileToDisplay?.bio || null;
+  const displayLocation = currentProfileToDisplay?.location || null;
+  const createdAt = currentUserAuthToDisplay?.created_at || new Date().toISOString();
   
-  const { createdTribes, joinedTribes } = useUserTribes(currentUser?.id);
-  const { organizedEvents, attendingEvents } = useUserEvents(currentUser?.id);
+  const { createdTribes, joinedTribes } = useUserTribes(id === 'me' ? currentUser?.id : id);
+  const { organizedEvents, attendingEvents } = useUserEvents(id === 'me' ? currentUser?.id : id);
   const { savedEvents, fetchSavedEvents, toggleSave } = useSavedEvents();
   const location = useLocation();
 
@@ -56,6 +66,56 @@ export default function Profile() {
       fetchSavedEvents(currentUser.id).catch(() => {});
     }
   }, [isOwnProfile, currentUser?.id, fetchSavedEvents]);
+
+  useEffect(() => {
+    const fetchViewedProfile = async () => {
+      setIsViewedProfileLoading(true);
+      if (isOwnProfile) {
+        setViewedProfile(profile);
+        setViewedUserAuth(currentUser);
+      } else if (id) {
+        try {
+          const { data: fetchedProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
+          }
+          setViewedProfile(fetchedProfile);
+
+          const { data: fetchedUserAuth, error: authError } = await supabase.auth.admin.getUserById(id);
+          if (authError) {
+            console.warn('Could not fetch auth user data for viewed profile:', authError.message);
+          }
+          setViewedUserAuth(fetchedUserAuth?.user || null);
+
+        } catch (error) {
+          console.error('Error fetching viewed profile:', error);
+          setViewedProfile(null);
+          setViewedUserAuth(null);
+        }
+      } else {
+        setViewedProfile(null);
+        setViewedUserAuth(null);
+      }
+      setIsViewedProfileLoading(false);
+    };
+
+    fetchViewedProfile();
+  }, [id, isOwnProfile, profile, currentUser]);
+
+  if (isViewedProfileLoading || isLoading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   if (!isOwnProfile && !id) {
     return (
