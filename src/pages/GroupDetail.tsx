@@ -280,7 +280,7 @@ export default function GroupDetail() {
 
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, bio')
+          .select('id, full_name, username, avatar_url, bio')
           .in('id', userIds);
 
         if (profilesError) throw profilesError;
@@ -288,6 +288,7 @@ export default function GroupDetail() {
         const membersList = (profilesData || []).map((profile: any) => ({
           id: profile.id,
           name: profile.full_name || 'Unknown User',
+          username: profile.username || profile.id,
           avatar_url: profile.avatar_url,
           location: profile.bio || 'Member'
         }));
@@ -700,8 +701,8 @@ export default function GroupDetail() {
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {members.map((user) => (
                     <Link
-                      key={user.id}
-                      to={`/profile/${user.id}`}
+                      key={user.username}
+                      to={`/profile/${user.username}`}
                       className="flex items-center gap-3 p-4 rounded-xl hover:bg-muted transition-colors"
                     >
                       <Avatar className="h-12 w-12">
