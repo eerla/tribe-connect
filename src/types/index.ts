@@ -2,10 +2,22 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  username: string;
   avatar_url?: string;
   bio?: string;
   location?: string;
   created_at: string;
+}
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  location: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface Tribe {
@@ -102,3 +114,4 @@ export interface Category {
   icon: string;
   color: string;
 }
+

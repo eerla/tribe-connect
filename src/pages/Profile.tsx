@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Users, Settings, Edit, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, Users, Settings, Edit, ChevronDown, User as UserIcon, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,22 @@ import { useUserTribes } from '@/hooks/useTribes';
 import { useUserEvents } from '@/hooks/useEvents';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import type { Profile } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
-  const { id } = useParams();
-  const { user: currentUser, profile, isAuthenticated } = useAuth();
+  const { username } = useParams();
+  const { user: currentUser, profile, isAuthenticated, isLoading } = useAuth();
   const [openSections, setOpenSections] = useState({
     createdTribes: true,
     joinedTribes: true,
     organizedEvents: true,
     attendingEvents: true,
   });
+
+  const [viewedProfile, setViewedProfile] = useState<Profile | null>(null);
+  const [viewedUserId, setViewedUserId] = useState<string | null>(null);
+  const [isViewedProfileLoading, setIsViewedProfileLoading] = useState(true);
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({
@@ -33,16 +39,19 @@ export default function Profile() {
     }));
   };
   
-  const isOwnProfile = id === 'me' || id === currentUser?.id;
+  const isOwnProfile = username === 'me' || username === currentUser?.id || username === profile?.username;
   
-  const displayName = isOwnProfile ? (profile?.full_name || 'User') : 'User';
-  const displayAvatar = isOwnProfile ? profile?.avatar_url : null;
-  const displayBio = isOwnProfile ? profile?.bio : null;
-  const displayLocation = isOwnProfile ? profile?.location : null;
-  const createdAt = currentUser?.created_at || new Date().toISOString();
+  const currentProfileToDisplay = isOwnProfile ? profile : viewedProfile;
+  const displayName = currentProfileToDisplay?.full_name || 'User';
+  const displayAvatar = currentProfileToDisplay?.avatar_url || undefined;
+  const displayBio = currentProfileToDisplay?.bio || null;
+  const displayLocation = currentProfileToDisplay?.location || null;
+  const createdAt = currentProfileToDisplay?.created_at || new Date().toISOString();
   
-  const { createdTribes, joinedTribes } = useUserTribes(currentUser?.id);
-  const { organizedEvents, attendingEvents } = useUserEvents(currentUser?.id);
+  const userIdForHooks = isOwnProfile ? currentUser?.id : viewedUserId;
+  const { createdTribes, joinedTribes } = useUserTribes(userIdForHooks);
+  const { organizedEvents, attendingEvents } = useUserEvents(userIdForHooks);
+  
   const { savedEvents, fetchSavedEvents, toggleSave } = useSavedEvents();
   const location = useLocation();
 
@@ -57,7 +66,50 @@ export default function Profile() {
     }
   }, [isOwnProfile, currentUser?.id, fetchSavedEvents]);
 
-  if (!isOwnProfile && !id) {
+  useEffect(() => {
+    const fetchViewedProfile = async () => {
+      setIsViewedProfileLoading(true);
+      if (isOwnProfile) {
+        setViewedProfile(profile);
+        setViewedUserId(currentUser?.id || null);
+      } else if (username) {
+        try {
+          const { data: fetchedProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
+          }
+          setViewedProfile(fetchedProfile);
+          setViewedUserId(fetchedProfile?.id || null);
+        } catch (error) {
+          console.error('Error fetching viewed profile:', error);
+          setViewedProfile(null);
+          setViewedUserId(null);
+        }
+      } else {
+        setViewedProfile(null);
+      }
+      setIsViewedProfileLoading(false);
+    };
+
+    fetchViewedProfile();
+  }, [username, isOwnProfile, profile, currentUser]);
+
+  if (isViewedProfileLoading || isLoading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isOwnProfile && !username) {
     return (
       <Layout>
         <div className="container py-20 text-center">

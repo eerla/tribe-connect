@@ -185,27 +185,38 @@ end;
 $$;
 
 -- Handle new user - create profile on signup
--- Recreate handle_new_user as security definer so trigger can insert profile rows
+-- Inside src/sql/001_init.sql
 CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger
   LANGUAGE plpgsql
   SECURITY DEFINER
 AS $$
+DECLARE
+  generated_username TEXT;
 BEGIN
-  -- insert a minimal profile; if already exists, ignore unique violation
-  INSERT INTO public.profiles (id, full_name, created_at, updated_at)
+  -- Create a base username from full_name or email
+  generated_username := LOWER(REGEXP_REPLACE(
+    COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
+    '[^a-z0-9]+', '-', 'gi'
+  ));
+  generated_username := REGEXP_REPLACE(generated_username, '^-+|-+$', '', 'g');
+
+  -- Generate a unique username using the existing slug logic
+  generated_username := public.generate_unique_slug(generated_username, 'profiles', NEW.id);
+
+  INSERT INTO public.profiles (id, full_name, username, created_at, updated_at) -- Add username here
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+    generated_username, -- Insert the generated unique username
     now(),
     now()
   );
   RETURN NEW;
 EXCEPTION
   WHEN unique_violation THEN
-    -- if profile already exists, do nothing
+    -- if profile already exists, do nothing (shouldn't happen with auth.users insert)
     RETURN NEW;
   WHEN others THEN
-    -- log and continue (do not prevent signup)
     RAISE WARNING 'handle_new_user failed for user %: % (sqlstate=%)', NEW.id, SQLERRM, SQLSTATE;
     RETURN NEW;
 END;
@@ -454,6 +465,12 @@ BEGIN
         SELECT 1 FROM public.events e
         WHERE e.slug = tmp_slug 
         AND (record_id IS NULL OR e.id != record_id)
+      ) INTO exists_check;
+    ELSIF table_name = 'profiles' THEN -- NEW: Handle profiles table
+      SELECT EXISTS(
+        SELECT 1 FROM public.profiles p
+        WHERE p.username = tmp_slug -- Query against username column
+        AND (record_id IS NULL OR p.id != record_id)
       ) INTO exists_check;
     ELSE
       RAISE EXCEPTION 'Unknown table: %', table_name;

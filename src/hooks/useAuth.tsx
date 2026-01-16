@@ -1,15 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import type { Profile } from '@/types';
 
-interface Profile {
-  id: string;
-  full_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  location: string | null;
-}
 
 interface AuthContextType {
   user: User | null;
@@ -120,20 +113,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const payload = { ...updates, id: user.id } as Partial<Profile> & { id: string };
 
     // Use upsert so if the profile row doesn't exist we create it (useful if trigger didn't run)
-    const { data, error } = await supabase
+    const { data, error }: { data: Profile[] | null; error: PostgrestError | null } = await supabase
       .from('profiles')
-      .upsert(payload, { returning: 'representation' });
+      .upsert(payload)
+      .select('*');
 
     if (error) {
       return { error: error as Error | null };
     }
 
     // If the upsert returned the row, use it; otherwise re-fetch to be safe
-    if (data && Array.isArray(data) && data.length > 0) {
+    if (data && data.length > 0) { // data is guaranteed to be an array here with returning: 'representation'
       setProfile(data[0] as Profile);
-    } else if (data && !Array.isArray(data)) {
-      setProfile(data as Profile);
     } else {
+      // This will be hit if data is an empty array (no rows affected) or null/undefined (error scenario not caught by `error` variable)
       await fetchProfile(user.id);
     }
 

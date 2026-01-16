@@ -5,7 +5,6 @@ import { Search, Calendar, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { EventCard } from '@/components/cards/EventCard';
 import { SkeletonEventCard } from '@/components/common/SkeletonCard';
 import { Badge } from '@/components/ui/badge';
 import { useEvents } from '@/hooks/useEvents';

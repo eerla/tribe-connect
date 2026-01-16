@@ -280,7 +280,7 @@ export default function GroupDetail() {
 
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, bio')
+          .select('id, full_name, username, avatar_url, bio')
           .in('id', userIds);
 
         if (profilesError) throw profilesError;
@@ -288,6 +288,7 @@ export default function GroupDetail() {
         const membersList = (profilesData || []).map((profile: any) => ({
           id: profile.id,
           name: profile.full_name || 'Unknown User',
+          username: profile.username || profile.id,
           avatar_url: profile.avatar_url,
           location: profile.bio || 'Member'
         }));
@@ -345,13 +346,14 @@ export default function GroupDetail() {
       try {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, bio')
+          .select('id, full_name, username, avatar_url, bio')
           .in('id', [user.id]);
 
         if (profilesData && profilesData.length > 0) {
           setMembers(prev => [{
             id: profilesData[0].id,
             name: profilesData[0].full_name || 'You',
+            username: profilesData[0].username || profilesData[0].id,
             avatar_url: profilesData[0].avatar_url,
             location: profilesData[0].bio || 'Member'
           }, ...prev]);
@@ -513,6 +515,11 @@ export default function GroupDetail() {
                     Created {new Date(tribe.created_at).toLocaleDateString()}
                   </span>
                 )}
+                {/* Member count */}
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-4 w-4" />
+                  {members.length} members
+                </span>
               </div>
 
               <p className="text-muted-foreground">
@@ -695,8 +702,8 @@ export default function GroupDetail() {
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {members.map((user) => (
                     <Link
-                      key={user.id}
-                      to={`/profile/${user.id}`}
+                      key={user.username}
+                      to={`/profile/${user.username}`}
                       className="flex items-center gap-3 p-4 rounded-xl hover:bg-muted transition-colors"
                     >
                       <Avatar className="h-12 w-12">
