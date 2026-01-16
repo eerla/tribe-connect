@@ -681,3 +681,7 @@ CREATE TRIGGER update_tribes_updated_at
   BEFORE UPDATE ON public.tribes
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ==============================================
+-- PRIVATE EVENTS SUPPORT
+-- ==============================================
