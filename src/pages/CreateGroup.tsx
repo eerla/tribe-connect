@@ -124,7 +124,8 @@ export default function CreateGroup() {
           title,
           description,
           city: location,
-          is_private: isPrivate,
+          // is_private: isPrivate,
+          is_private: false,
           category,
         })
         .select()
@@ -301,7 +302,7 @@ export default function CreateGroup() {
             </div>
 
             {/* Privacy */}
-            <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
+            {/* <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
               <h2 className="font-semibold flex items-center gap-2">
                 <Lock className="h-5 w-5" />
                 Privacy
@@ -316,7 +317,7 @@ export default function CreateGroup() {
                 </div>
                 <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
               </div>
-            </div>
+            </div> */}
 
             {/* Submit */}
             <div className="flex gap-4">

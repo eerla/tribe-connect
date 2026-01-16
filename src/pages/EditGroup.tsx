@@ -416,7 +416,7 @@ export default function EditGroup() {
               </div>
             </div>
 
-            <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
+            {/* <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
               <h2 className="font-semibold flex items-center gap-2">
                 <Lock className="h-5 w-5" />
                 Privacy
@@ -429,7 +429,7 @@ export default function EditGroup() {
                 </div>
                 <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
               </div>
-            </div>
+            </div> */}
 
             <div className="flex gap-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => navigate(-1)}>
