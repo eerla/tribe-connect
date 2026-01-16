@@ -35,6 +35,7 @@ import { format } from 'date-fns';
 import useSavedEvents from '@/hooks/useSavedEvents';
 import { EventComments } from '@/components/event/EventComments';
 import { SEO } from '@/components/common/SEO';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface Event {

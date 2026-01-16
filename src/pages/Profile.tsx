@@ -204,15 +204,23 @@ export default function Profile() {
             {/* Stats */}
             <div className="flex gap-8 p-4 bg-muted/50 rounded-xl">
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">
-                  {tribesLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : totalTribes}
-                </p>
+                {tribesLoading ? (
+                  <div className="text-2xl font-bold font-heading flex items-center justify-center">
+                    <Skeleton className="h-8 w-12" />
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold font-heading">{totalTribes}</p>
+                )}
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">
-                  {eventsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : totalEvents}
-                </p>
+                {eventsLoading ? (
+                  <div className="text-2xl font-bold font-heading flex items-center justify-center">
+                    <Skeleton className="h-8 w-12" />
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold font-heading">{totalEvents}</p>
+                )}
                 <p className="text-sm text-muted-foreground">Events</p>
               </div>
             </div>
