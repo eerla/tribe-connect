@@ -159,16 +159,17 @@ export default function GroupDetail() {
 
   useEffect(() => {
     const fetchTribe = async () => {
-      if (!id) return;
-      
+      if (!id) {
+        setTribe(null);
+        setIsLoading(false);
+        return;
+      }
       try {
         // Try to fetch by ID first (UUID)
         let data = null;
         let error = null;
-        
         // Check if id is a UUID format
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-        
         if (isUUID) {
           const result = await supabase
             .from('tribes')
@@ -188,7 +189,6 @@ export default function GroupDetail() {
             .single();
           data = result.data;
           error = result.error;
-          
           // If not found, check slug_history for redirects
           if (error || !data) {
             const { data: historyData } = await supabase
@@ -197,7 +197,6 @@ export default function GroupDetail() {
               .eq('entity_type', 'tribe')
               .eq('old_slug', id)
               .single();
-            
             if (historyData?.new_slug) {
               // Redirect to new slug
               navigate(`/groups/${historyData.new_slug}`, { replace: true });
@@ -205,23 +204,20 @@ export default function GroupDetail() {
             }
           }
         }
-
         if (error) throw error;
-        
         // If fetched by UUID and has a slug, redirect to slug URL
         if (data && isUUID && data.slug) {
           navigate(`/groups/${data.slug}`, { replace: true });
           return;
         }
-        
         setTribe(data);
-      } catch (error) {
-        console.error('Error fetching tribe:', error);
-      } finally {
         setIsLoading(false);
+      } catch (error) {
+        setTribe(null);
+        setIsLoading(false);
+        console.error('Error fetching tribe:', error);
       }
     };
-
     fetchTribe();
   }, [id, navigate]);
 
@@ -422,16 +418,58 @@ export default function GroupDetail() {
 };
 
   if (isLoading) {
+    // Skeleton UI for loading state
     return (
       <Layout>
-        <div className="container py-20 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <div className="container max-w-2xl py-8 md:py-12 animate-pulse">
+          {/* Hero Image Skeleton */}
+          <div className="relative h-[35vh] md:h-[45vh] overflow-hidden bg-muted rounded-2xl mb-[-4rem]">
+            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+              <Users className="h-20 w-20 text-muted-foreground/20" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+            <div className="absolute top-4 left-4">
+              <div className="h-8 w-24 bg-muted-foreground/10 rounded" />
+            </div>
+          </div>
+
+          <div className="container -mt-16 relative z-10 pb-16">
+            <div className="bg-card rounded-2xl border border-border p-6 md:p-8 shadow-card mb-8">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-8 w-48 bg-muted-foreground/10 rounded" />
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
+                    <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+                    <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+                    <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+                  </div>
+                  <div className="h-4 w-full max-w-md bg-muted-foreground/10 rounded mb-2" />
+                  <div className="h-4 w-2/3 bg-muted-foreground/10 rounded" />
+                </div>
+                <div className="self-end">
+                  <div className="h-10 w-10 bg-muted-foreground/10 rounded-full" />
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs Skeleton */}
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="h-8 w-32 bg-muted-foreground/10 rounded mb-6" />
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-32 bg-muted-foreground/10 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </Layout>
     );
   }
 
-  if (!tribe) {
+  if (!tribe && !isLoading) {
     return (
       <Layout>
         <div className="container py-20 text-center">
