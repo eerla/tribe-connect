@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import type { Profile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Profile() {
   const { username } = useParams();
@@ -49,8 +50,9 @@ export default function Profile() {
   const createdAt = currentProfileToDisplay?.created_at || new Date().toISOString();
   
   const userIdForHooks = isOwnProfile ? currentUser?.id : viewedUserId;
-  const { createdTribes, joinedTribes } = useUserTribes(userIdForHooks);
-  const { organizedEvents, attendingEvents } = useUserEvents(userIdForHooks);
+  // Add loading states for tribe/event hooks
+  const { createdTribes, joinedTribes, isLoading: tribesLoading } = useUserTribes(userIdForHooks);
+  const { organizedEvents, attendingEvents, isLoading: eventsLoading } = useUserEvents(userIdForHooks);
   
   const { savedEvents, fetchSavedEvents, toggleSave } = useSavedEvents();
   const location = useLocation();
@@ -202,11 +204,15 @@ export default function Profile() {
             {/* Stats */}
             <div className="flex gap-8 p-4 bg-muted/50 rounded-xl">
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">{totalTribes}</p>
+                <p className="text-2xl font-bold font-heading">
+                  {tribesLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : totalTribes}
+                </p>
                 <p className="text-sm text-muted-foreground">Tribes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold font-heading">{totalEvents}</p>
+                <p className="text-2xl font-bold font-heading">
+                  {eventsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : totalEvents}
+                </p>
                 <p className="text-sm text-muted-foreground">Events</p>
               </div>
             </div>
