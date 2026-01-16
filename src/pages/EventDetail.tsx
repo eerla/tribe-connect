@@ -87,16 +87,17 @@ export default function EventDetail() {
 
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!id) return;
-      
+      if (!id) {
+        setEvent(null);
+        setIsLoading(false);
+        return;
+      }
       try {
         // Try to fetch by ID first (UUID)
         let data = null;
         let error = null;
-        
         // Check if id is a UUID format
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-        
         if (isUUID) {
           const result = await supabase
             .from('events')
@@ -114,7 +115,6 @@ export default function EventDetail() {
             .single();
           data = result.data;
           error = result.error;
-          
           // If not found, check slug_history for redirects
           if (error || !data) {
             const { data: historyData } = await supabase
@@ -123,7 +123,6 @@ export default function EventDetail() {
               .eq('entity_type', 'event')
               .eq('old_slug', id)
               .single();
-            
             if (historyData?.new_slug) {
               // Redirect to new slug
               navigate(`/events/${historyData.new_slug}`, { replace: true });
@@ -131,27 +130,24 @@ export default function EventDetail() {
             }
           }
         }
-
         if (error) throw error;
-        
         // If fetched by UUID and has a slug, redirect to slug URL
         if (data && isUUID && data.slug) {
           navigate(`/events/${data.slug}`, { replace: true });
           return;
         }
-        
         setEvent(data);
         try {
           const saved = await checkSaved(data.id);
           setIsSaved(saved);
         } catch {}
-      } catch (error) {
-        console.error('Error fetching event:', error);
-      } finally {
         setIsLoading(false);
+      } catch (error) {
+        setEvent(null);
+        setIsLoading(false);
+        console.error('Error fetching event:', error);
       }
     };
-
     fetchEvent();
   }, [id, navigate]);
 
@@ -220,17 +216,49 @@ export default function EventDetail() {
     fetchAttendeeCount();
   }, [event?.id]);
 
+
   if (isLoading) {
+    // Skeleton UI for loading state
     return (
       <Layout>
-        <div className="container py-20 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <div className="container max-w-2xl py-8 md:py-12 animate-pulse">
+          {/* Hero Image Skeleton */}
+          <div className="relative h-[40vh] md:h-[50vh] overflow-hidden bg-muted rounded-2xl mb-[-4rem]">
+            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+              <Calendar className="h-20 w-20 text-muted-foreground/20" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+            <div className="absolute top-4 left-4">
+              <div className="h-8 w-24 bg-muted-foreground/10 rounded" />
+            </div>
+          </div>
+          <div className="container -mt-16 relative z-10 pb-16">
+            <div className="bg-card rounded-2xl border border-border p-6 md:p-8 shadow-card mb-8">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-8 w-48 bg-muted-foreground/10 rounded" />
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
+                <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+                <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+                <div className="h-5 w-32 bg-muted-foreground/10 rounded" />
+              </div>
+              <div className="h-4 w-full max-w-md bg-muted-foreground/10 rounded mb-2" />
+              <div className="h-4 w-2/3 bg-muted-foreground/10 rounded" />
+            </div>
+            {/* Sidebar Skeleton */}
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <div className="h-10 w-32 bg-muted-foreground/10 rounded mb-6" />
+              <div className="h-10 w-32 bg-muted-foreground/10 rounded mb-2" />
+              <div className="h-10 w-32 bg-muted-foreground/10 rounded mb-2" />
+              <div className="h-10 w-32 bg-muted-foreground/10 rounded" />
+            </div>
+          </div>
         </div>
       </Layout>
     );
   }
 
-  if (!event) {
+  if (!event && !isLoading) {
     return (
       <Layout>
         <div className="container py-20 text-center">
