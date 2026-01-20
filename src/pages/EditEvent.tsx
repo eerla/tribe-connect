@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { generateRRule } from '@/lib/rrule';
 import { Calendar, MapPin, Clock, Image, ArrowLeft, Loader2, X, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { categories } from '@/data/categories';
+
+
 
 interface Event {
   id: string;
@@ -64,6 +67,14 @@ export default function EditEvent() {
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [currentBannerUrl, setCurrentBannerUrl] = useState<string | null>(null);
   const [removeBanner, setRemoveBanner] = useState(false);
+
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<string[]>([]);
+  const [recurrenceEndType, setRecurrenceEndType] = useState<'never' | 'after' | 'on'>('never');
+  const [recurrenceCount, setRecurrenceCount] = useState<number>(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   // Location verification state
   const [locationStatus, setLocationStatus] = useState<{
@@ -453,6 +464,19 @@ export default function EditEvent() {
       }
 
       // Prepare update payload
+      // const updatePayload: any = {
+      //   title,
+      //   description,
+      //   location: locationString,
+      //   latitude,
+      //   longitude,
+      //   starts_at: startsAt,
+      //   ends_at: endsAt,
+      //   capacity: capacity ? parseInt(capacity) : null,
+      //   price: parseFloat(price || '0'),
+      //   category: selectedCategory || null,
+      // };
+
       const updatePayload: any = {
         title,
         description,
@@ -464,6 +488,15 @@ export default function EditEvent() {
         capacity: capacity ? parseInt(capacity) : null,
         price: parseFloat(price || '0'),
         category: selectedCategory || null,
+        recurrence_rule: recurrenceType !== 'none' ? generateRRule({
+          frequency: recurrenceType.toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+          interval: recurrenceInterval,
+          byweekday: recurrenceType === 'weekly' ? recurrenceWeekdays : [],
+          dtstart: new Date(`${startDate}T${startTime}`),
+          until: recurrenceEndType === 'on' && recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
+          count: recurrenceEndType === 'after' ? recurrenceCount : undefined,
+        }) : null,
+        recurrence_end_date: recurrenceEndType === 'on' && recurrenceEndDate ? recurrenceEndDate : null,
       };
 
       // Handle banner image
@@ -808,6 +841,83 @@ export default function EditEvent() {
                 <Link to={`/events/${event?.slug || id}`}>Cancel</Link>
               </Button>
             </div>
+
+            {/* Recurrence Section */}
+            <div>
+              <Label>Repeat</Label>
+              <Select value={recurrenceType} onValueChange={v => setRecurrenceType(v as any)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (One-time)</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              {recurrenceType !== 'none' && (
+                <div className="mt-2 space-y-2">
+                  <Label>Repeat every</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={recurrenceInterval}
+                    onChange={e => setRecurrenceInterval(Number(e.target.value))}
+                    className="w-24 inline-block ml-2"
+                  />
+                  <span className="ml-2">{recurrenceType === 'daily' ? 'day(s)' : recurrenceType === 'weekly' ? 'week(s)' : 'month(s)'}</span>
+                  {recurrenceType === 'weekly' && (
+                    <div className="mt-2 flex gap-2">
+                      {["MO","TU","WE","TH","FR","SA","SU"].map(day => (
+                        <Button
+                          key={day}
+                          type="button"
+                          variant={recurrenceWeekdays.includes(day) ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setRecurrenceWeekdays(
+                            recurrenceWeekdays.includes(day)
+                              ? recurrenceWeekdays.filter(d => d !== day)
+                              : [...recurrenceWeekdays, day]
+                          )}
+                        >{day}</Button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <Label>Ends</Label>
+                    <Select value={recurrenceEndType} onValueChange={v => setRecurrenceEndType(v as any)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Never" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="after">After N occurrences</SelectItem>
+                        <SelectItem value="on">On date</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {recurrenceEndType === 'after' && (
+                      <Input
+                        type="number"
+                        min={1}
+                        value={recurrenceCount}
+                        onChange={e => setRecurrenceCount(Number(e.target.value))}
+                        className="w-24 mt-2"
+                      />
+                    )}
+                    {recurrenceEndType === 'on' && (
+                      <Input
+                        type="date"
+                        value={recurrenceEndDate}
+                        onChange={e => setRecurrenceEndDate(e.target.value)}
+                        className="w-48 mt-2"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
           </form>
         </motion.div>
       </div>

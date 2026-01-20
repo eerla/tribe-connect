@@ -36,6 +36,7 @@ import useSavedEvents from '@/hooks/useSavedEvents';
 import { EventComments } from '@/components/event/EventComments';
 import { SEO } from '@/components/common/SEO';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getRecurrenceText } from '@/lib/rrule';
 
 
 interface Event {
@@ -548,6 +549,16 @@ export default function EventDetail() {
                 <p className="text-muted-foreground leading-relaxed">
                   {event.description || 'No description provided'}
                 </p>
+                {event.recurrence_rule && (
+                  <div className="mt-4 p-3 rounded-lg bg-secondary text-secondary-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="font-medium">Repeats:</span>
+                    <span>{getRecurrenceText(event.recurrence_rule)}</span>
+                    {event.recurrence_end_date && (
+                      <span className="ml-2 text-xs text-muted-foreground">(Ends: {format(new Date(event.recurrence_end_date), 'MMM d, yyyy')})</span>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
