@@ -225,12 +225,12 @@ export default function EditEvent() {
         // Recurrence: prepopulate from recurrence_rule if present
         if (data.recurrence_rule) {
           const recur = extractRecurrenceState(data.recurrence_rule);
-          setRecurrenceType(recur.recurrenceType);
-          setRecurrenceInterval(recur.recurrenceInterval);
-          setRecurrenceWeekdays(recur.recurrenceWeekdays);
-          setRecurrenceEndType(recur.recurrenceEndType);
-          setRecurrenceCount(recur.recurrenceCount);
-          setRecurrenceEndDate(recur.recurrenceEndDate);
+          setRecurrenceType(recur.recurrenceType as 'none' | 'daily' | 'weekly' | 'monthly');
+          setRecurrenceInterval(Number(recur.recurrenceInterval));
+          setRecurrenceWeekdays(Array.isArray(recur.recurrenceWeekdays) ? recur.recurrenceWeekdays : []);
+          setRecurrenceEndType(recur.recurrenceEndType as 'never' | 'after' | 'on');
+          setRecurrenceCount(Number(recur.recurrenceCount));
+          setRecurrenceEndDate(recur.recurrenceEndDate || '');
         } else {
           setRecurrenceType('none');
           setRecurrenceInterval(1);
