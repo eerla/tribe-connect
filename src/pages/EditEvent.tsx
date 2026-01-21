@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { generateRRule } from '@/lib/rrule';
+import { extractRecurrenceState } from '@/lib/recurrenceState';
 import { Calendar, MapPin, Clock, Image, ArrowLeft, Loader2, X, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -218,7 +219,26 @@ export default function EditEvent() {
         setSelectedCategory(data.category || '');
         setCapacity(data.capacity?.toString() || '');
         setPrice((data.price || 0).toString());
+
         setCurrentBannerUrl(data.banner_url || null);
+
+        // Recurrence: prepopulate from recurrence_rule if present
+        if (data.recurrence_rule) {
+          const recur = extractRecurrenceState(data.recurrence_rule);
+          setRecurrenceType(recur.recurrenceType);
+          setRecurrenceInterval(recur.recurrenceInterval);
+          setRecurrenceWeekdays(recur.recurrenceWeekdays);
+          setRecurrenceEndType(recur.recurrenceEndType);
+          setRecurrenceCount(recur.recurrenceCount);
+          setRecurrenceEndDate(recur.recurrenceEndDate);
+        } else {
+          setRecurrenceType('none');
+          setRecurrenceInterval(1);
+          setRecurrenceWeekdays([]);
+          setRecurrenceEndType('never');
+          setRecurrenceCount(1);
+          setRecurrenceEndDate('');
+        }
 
         // If location exists and has coordinates, mark as verified
         if (data.location && data.latitude && data.longitude) {
@@ -818,29 +838,6 @@ export default function EditEvent() {
               />
             </div>
 
-            {/* Submit Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="submit"
-                variant="hero"
-                size="lg"
-                className="flex-1"
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-
-              <Button type="button" variant="outline" size="lg" asChild>
-                <Link to={`/events/${event?.slug || id}`}>Cancel</Link>
-              </Button>
-            </div>
 
             {/* Recurrence Section */}
             <div>
@@ -869,7 +866,7 @@ export default function EditEvent() {
                   <span className="ml-2">{recurrenceType === 'daily' ? 'day(s)' : recurrenceType === 'weekly' ? 'week(s)' : 'month(s)'}</span>
                   {recurrenceType === 'weekly' && (
                     <div className="mt-2 flex gap-2">
-                      {["MO","TU","WE","TH","FR","SA","SU"].map(day => (
+                      {['MO','TU','WE','TH','FR','SA','SU'].map(day => (
                         <Button
                           key={day}
                           type="button"
@@ -916,6 +913,30 @@ export default function EditEvent() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Submit Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="submit"
+                variant="hero"
+                size="lg"
+                className="flex-1"
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+
+              <Button type="button" variant="outline" size="lg" asChild>
+                <Link to={`/events/${event?.slug || id}`}>Cancel</Link>
+              </Button>
             </div>
 
           </form>
