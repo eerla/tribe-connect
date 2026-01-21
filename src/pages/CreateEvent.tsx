@@ -19,8 +19,10 @@ import { useTribes } from '@/hooks/useTribes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { generateRRule } from '@/lib/rrule';
 
 export default function CreateEvent() {
+  // All hooks must be inside the function component body
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +32,9 @@ export default function CreateEvent() {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  // Set sensible defaults for date/time
+  const defaultDate = new Date().toISOString().split('T')[0];
+  const defaultTime = new Date().toTimeString().slice(0, 5);
   const [startDate, setStartDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -45,7 +50,7 @@ export default function CreateEvent() {
   const [price, setPrice] = useState('0');
   const [bannerImage, setBannerImage] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  
+
   // Location verification state
   const [locationStatus, setLocationStatus] = useState<{
     verified: boolean;
@@ -53,6 +58,14 @@ export default function CreateEvent() {
     message: string;
     isVerifying: boolean;
   }>({ verified: false, coords: null, message: '', isVerifying: false });
+
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<string[]>([]);
+  const [recurrenceEndType, setRecurrenceEndType] = useState<'never' | 'after' | 'on'>('never');
+  const [recurrenceCount, setRecurrenceCount] = useState<number>(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   // Derived constraints for date/time pickers
   const todayDate = new Date().toISOString().split('T')[0];
@@ -333,6 +346,9 @@ export default function CreateEvent() {
         }
       }
 
+      // Recurrence logic
+      // Import generateRRule from your helper
+      // If not already imported, add: import { generateRRule } from '@/lib/rrule';
       const { data, error } = await supabase
         .from('events')
         .insert({
@@ -348,6 +364,15 @@ export default function CreateEvent() {
           ends_at: endsAt,
           capacity: capacity ? parseInt(capacity) : null,
           price: parseFloat(price || '0'),
+          recurrence_rule: recurrenceType !== 'none' ? generateRRule({
+            frequency: recurrenceType.toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY',
+            interval: recurrenceInterval,
+            byweekday: recurrenceType === 'weekly' ? recurrenceWeekdays : [],
+            dtstart: new Date(`${startDate}T${startTime}`),
+            until: recurrenceEndType === 'on' && recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
+            count: recurrenceEndType === 'after' ? recurrenceCount : undefined,
+          }) : null,
+          recurrence_end_date: recurrenceEndType === 'on' && recurrenceEndDate ? recurrenceEndDate : null,
         })
         .select()
         .single();
@@ -542,7 +567,7 @@ export default function CreateEvent() {
                     type="time" 
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    min={startTimeMin}
+                    min={startDate === todayDate ? currentTime : undefined}
                     required 
                   />
                 </div>
@@ -556,7 +581,7 @@ export default function CreateEvent() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    min={endDateMin}
+                    min={startDate || todayDate}
                   />
                 </div>
                 <div className="space-y-2">
@@ -566,7 +591,7 @@ export default function CreateEvent() {
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    min={endTimeMin}
+                    min={endDate && startDate && endDate === startDate && startTime ? startTime : undefined}
                   />
                 </div>
               </div>
@@ -684,6 +709,85 @@ export default function CreateEvent() {
                   onChange={(e) => setPrice(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Recurrence Section */}
+            <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Repeat
+              </h2>
+              <Select value={recurrenceType} onValueChange={v => setRecurrenceType(v as any)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (One-time)</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              {recurrenceType !== 'none' && (
+                <div className="mt-2 space-y-2">
+                  <Label>Repeat every</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={recurrenceInterval}
+                    onChange={e => setRecurrenceInterval(Number(e.target.value))}
+                    className="w-24 inline-block ml-2"
+                  />
+                  <span className="ml-2">{recurrenceType === 'daily' ? 'day(s)' : recurrenceType === 'weekly' ? 'week(s)' : 'month(s)'}</span>
+                  {recurrenceType === 'weekly' && (
+                    <div className="mt-2 flex gap-2">
+                      {["MO","TU","WE","TH","FR","SA","SU"].map(day => (
+                        <Button
+                          key={day}
+                          type="button"
+                          variant={recurrenceWeekdays.includes(day) ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setRecurrenceWeekdays(
+                            recurrenceWeekdays.includes(day)
+                              ? recurrenceWeekdays.filter(d => d !== day)
+                              : [...recurrenceWeekdays, day]
+                          )}
+                        >{day}</Button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <Label>Ends</Label>
+                    <Select value={recurrenceEndType} onValueChange={v => setRecurrenceEndType(v as any)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Never" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="after">After N occurrences</SelectItem>
+                        <SelectItem value="on">On date</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {recurrenceEndType === 'after' && (
+                      <Input
+                        type="number"
+                        min={1}
+                        value={recurrenceCount}
+                        onChange={e => setRecurrenceCount(Number(e.target.value))}
+                        className="w-24 mt-2"
+                      />
+                    )}
+                    {recurrenceEndType === 'on' && (
+                      <Input
+                        type="date"
+                        value={recurrenceEndDate}
+                        onChange={e => setRecurrenceEndDate(e.target.value)}
+                        className="w-48 mt-2"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit */}

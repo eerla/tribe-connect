@@ -66,6 +66,8 @@ export interface Event {
   is_cancelled?: boolean;
   latitude?: number;
   longitude?: number;
+  recurrence_rule?: string | null;
+  recurrence_end_date?: string | null;
   [key: string]: any;
 }
 
