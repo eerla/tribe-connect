@@ -1,8 +1,10 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Loader2, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+
 
 interface Attendee {
   id: string;
@@ -13,31 +15,50 @@ interface Attendee {
 
 export default function EventAttendeesPage() {
   const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [eventId, setEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchAttendees() {
+    async function fetchEventIdAndAttendees() {
       setIsLoading(true);
-      // Adjust the query below to match your RSVP/attendees table structure
+      // First, fetch the event by slug to get its id
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (eventError || !eventData) {
+        setIsLoading(false);
+        setAttendees([]);
+        return;
+      }
+      const event_id = eventData.id;
+      setEventId(event_id);
+      // Now fetch attendees by event id
       const { data, error } = await supabase
         .from('event_attendees')
-        .select('user_id, users(name, avatar_url, email)')
-        .eq('event_id', id);
+        .select('user_id, profiles(full_name, avatar_url, username)')
+        .eq('event_id', event_id);
       if (!error && data) {
         setAttendees(
           data.map((row: any) => ({
             id: row.user_id,
-            name: row.users?.name || 'Unknown',
-            avatar_url: row.users?.avatar_url,
-            email: row.users?.email,
+            name: row.profiles?.full_name || row.profiles?.username || 'Unknown',
+            avatar_url: row.profiles?.avatar_url,
+            email: row.profiles?.username, // or null if you don't want to show username as email
           }))
         );
+      } else {
+        setAttendees([]);
       }
       setIsLoading(false);
     }
-    fetchAttendees();
-  }, [id]);
+    if (slug) {
+      fetchEventIdAndAttendees();
+    }
+  }, [slug]);
 
   return (
     <Layout>
@@ -69,7 +90,7 @@ export default function EventAttendeesPage() {
           </ul>
         )}
         <div className="mt-8">
-          <Link to={id ? `/events/${id}` : '/events'} className="text-primary hover:underline">← Back to Event</Link>
+          <Link to={slug ? `/events/${slug}` : '/events'} className="text-primary hover:underline">← Back to Event</Link>
         </div>
       </div>
     </Layout>

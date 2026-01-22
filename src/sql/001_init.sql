@@ -685,3 +685,8 @@ CREATE TRIGGER update_tribes_updated_at
 -- ==============================================
 -- PRIVATE EVENTS SUPPORT
 -- ==============================================
+
+ALTER TABLE public.event_attendees
+ADD CONSTRAINT event_attendees_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+ON DELETE CASCADE;

@@ -540,10 +540,14 @@ export default function EventDetail() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-heading mb-0">About this event</h3>
                   {!event.is_cancelled && attendeeCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-sm text-primary hover:underline cursor-pointer bg-transparent border-0 p-0 m-0"
+                      onClick={() => navigate(`/events/${event.slug || event.id}/attendees`)}
+                    >
                       <Users className="h-4 w-4" />
                       <span>{attendeeCount} attending</span>
-                    </div>
+                    </button>
                   )}
                 </div>
                 <p className="text-muted-foreground leading-relaxed">
