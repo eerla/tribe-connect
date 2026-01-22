@@ -31,7 +31,7 @@ export function EventCard({ event, index = 0, isSaved = false, onToggleSave, lin
           {/* Cover Image */}
           <div className="aspect-[16/10] overflow-hidden relative">
             <img
-              src={event.cover_image || `https://picsum.photos/800/500?random=${event.id}`}
+              src={event.banner_url || `https://picsum.photos/800/500?random=${event.id}`}
               alt={event.title}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
